@@ -1,0 +1,7 @@
+/*
+!.gitignore
+!/ref/
+/ref/*
+!/ref/Makefile
+!/ref/indcpa.c
+!/my_kyber/
