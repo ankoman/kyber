@@ -34,7 +34,8 @@ all: \
   test_vectors1024-90s
 
 test: \
-  test_kyber512
+  test_kyber512 \
+  test_vectors512
 
 speed: \
   test_speed512 \
