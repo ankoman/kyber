@@ -22,7 +22,7 @@ tree = [
   3, 67, 35, 99, 19, 83, 51, 115, 11, 75, 43, 107, 27, 91, 59, 123,
   7, 71, 39, 103, 23, 87, 55, 119, 15, 79, 47, 111, 31, 95, 63, 127
 ]
-zeta = [17**i % q for i in range(n+1)]
+zetas = [17**i % q for i in range(n)]
 n_inv = pow(n, q-2, q)
 
 ##### Test vector
@@ -80,18 +80,29 @@ class Rq:
 
         return tmp
 
-    def ntt(poly_in):
-        poly_out = copy.deepcopy(poly_in)
-        kk = 1
-        for len in [128, 64, 32, 16, 8, 4, 2]:
-            for start in range(0, 256, 2*len):
-                zeta = 17**tree[kk]
-                kk += 1
-                for j in range(start, start + len):
-                    t = zeta * poly_out.coeff[j + len]
-                    poly_out.coeff[j + len] = poly_out.coeff[j] - t
-                    poly_out.coeff[j] = poly_out.coeff[j] + t
+    @classmethod
+    def ntt(cls, poly_in):
+        # Straight forward version
+        poly_out = cls()
+        for i in range(128):
+            for j in range(128):
+                zeta = zetas[(2*tree[i]+1)*j % n]
+                poly_out.coeff[2*i] += poly_in.coeff[2*j] * zeta
+                poly_out.coeff[2*i+1] += poly_in.coeff[2*j+1] * zeta
         
+        # # FFT version
+        # poly_out = copy.deepcopy(poly_in)
+        # kk = 1
+        # for len in [128, 64, 32, 16, 8, 4, 2]:
+        #     for start in range(0, 256, 2*len):
+        #         zeta = 17**tree[kk]
+        #         kk += 1
+        #         for j in range(start, start + len):
+        #             t = zeta * poly_out.coeff[j + len]
+        #             poly_out.coeff[j + len] = poly_out.coeff[j] - t
+        #             poly_out.coeff[j] = poly_out.coeff[j] + t
+
+        # Reduction
         for i in range(n):
             poly_out.coeff[i] %= q
             #上の%qで値が正になるので、ref実装に合わせるため[-q/2,q/2]の範囲に戻す。
