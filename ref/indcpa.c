@@ -286,21 +286,35 @@ void indcpa_enc(uint8_t c[KYBER_INDCPA_BYTES],
   polyvec sp, pkpv, ep, at[KYBER_K], b;
   poly v, k, epp;
 
+  dump("m", m, KYBER_INDCPA_MSGBYTES);
+  dump("coin", coins, KYBER_SYMBYTES);
+
   unpack_pk(&pkpv, seed, pk);
+  dump("t_", &pkpv, KYBER_K*KYBER_N*2);
+  dump("rho", seed, KYBER_SYMBYTES);
+
   poly_frommsg(&k, m);
   gen_at(at, seed);
+  dump("at", at, KYBER_K*KYBER_K*KYBER_N*2);
 
   for(i=0;i<KYBER_K;i++)
     poly_getnoise_eta1(sp.vec+i, coins, nonce++);
+  dump("r", &sp, KYBER_K*KYBER_N*2);
+
   for(i=0;i<KYBER_K;i++)
     poly_getnoise_eta2(ep.vec+i, coins, nonce++);
+  dump("e1", &ep, KYBER_K*KYBER_N*2);
+
   poly_getnoise_eta2(&epp, coins, nonce++);
+  dump("e2", &epp, KYBER_N*2);
 
   polyvec_ntt(&sp);
+  dump("r_", &sp, KYBER_K*KYBER_N*2);
 
   // matrix-vector multiplication
   for(i=0;i<KYBER_K;i++)
     polyvec_basemul_acc_montgomery(&b.vec[i], &at[i], &sp);
+  dump("Atr", &b, KYBER_K*KYBER_N*2);
 
   polyvec_basemul_acc_montgomery(&v, &pkpv, &sp);
 
@@ -308,9 +322,12 @@ void indcpa_enc(uint8_t c[KYBER_INDCPA_BYTES],
   poly_invntt_tomont(&v);
 
   polyvec_add(&b, &b, &ep);
+
   poly_add(&v, &v, &epp);
   poly_add(&v, &v, &k);
   polyvec_reduce(&b);
+  dump("u", &b, KYBER_K*KYBER_N*2);
+
   poly_reduce(&v);
 
   pack_ciphertext(c, &b, &v);
