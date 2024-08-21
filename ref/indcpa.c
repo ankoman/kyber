@@ -105,7 +105,10 @@ static void pack_ciphertext(uint8_t r[KYBER_INDCPA_BYTES], polyvec *b, poly *v)
 static void unpack_ciphertext(polyvec *b, poly *v, const uint8_t c[KYBER_INDCPA_BYTES])
 {
   polyvec_decompress(b, c);
+  dump("rounded_u", b, KYBER_K*KYBER_N*2);
   poly_decompress(v, c+KYBER_POLYVECCOMPRESSEDBYTES);
+  dump("rounded_v", v, KYBER_N*2);
+
 }
 
 /*************************************************
@@ -362,12 +365,21 @@ void indcpa_dec(uint8_t m[KYBER_INDCPA_MSGBYTES],
   unpack_ciphertext(&b, &v, c);
   unpack_sk(&skpv, sk);
 
+  dump("red_s", &(skpv.vec[1]), KYBER_K*KYBER_N);
+
+
   polyvec_ntt(&b);
+  dump("ntt_u", &b, KYBER_K*KYBER_N*2);
+
   polyvec_basemul_acc_montgomery(&mp, &skpv, &b);
   poly_invntt_tomont(&mp);
+  dump("stu", &mp, KYBER_N*2);
 
   poly_sub(&mp, &v, &mp);
   poly_reduce(&mp);
+  dump("mp", &mp, KYBER_N*2);
 
   poly_tomsg(m, &mp);
+  dump("msg", m, 32);
+
 }

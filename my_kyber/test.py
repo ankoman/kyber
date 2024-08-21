@@ -63,6 +63,15 @@ tv_enc_kr = 0x596937a0b939ce027d3050d768119a7c40945caacbabc6dd04b73300c49d7ab6d1
 tv_enc_m = 0xbac5ba881dd35c59719670004692d675b83c98db6a0e55800bafeb7e70491bf4   ### Given
 tv_enc_K = 0x8a627b20f82f8d9d72915148446d2aa1e2533cec93ecf99ff9d1c7c59c0a115b
 
+tv_dec_rounded_u = 0x0b09880b100712068c0cea08f6068402c80aa009e704120a80097a02fc02fa0898032109890831081d07d3076d028503050ae4013202b9004c096602f505360378072e00c806c20367075b008005b001aa05e9036b03c604a10aa2070f02df0af70080027c09d304a40a2e01230bed00d50a6c09ab06a90448098e075407b50b26036b0bba0941082e05630a78006508ed070903520988075505a9002708160380023e0862016609010908069b06d00cac070c0344071303c004b2036f09500a5b0cd701f6064a03370ca6045a0ae9075f0573015505d0049402d300870ac10951084209670baf033400e0081c025107b30c340ced037b036e076602f902ed03c7019c0c2a0c03085e083c022a089605980bbd05580413076b0cc00cfa0b8103e0040f03f20ab20714058500c9072d03cd009908fd078503e708d101b608f101f60a4403e2028e0af704a30919031c0369016f05100b1109ab0629036a0a9d05fb012c0a12062404cb091d0bc20b3205f30780094501070cee019b0a6a06d705890c8e031d04a6086b08df066006670a8d027f04f40c1d08dc065e041c037f084902ce019f085602c802740bf108be0ad304bc079601580c5606b30c6a022003e1010308850c960ccb0ad1051a00af0b370489091405d3076f08b5033404e903070c5e07f8091004d806e20644036b03d903b9084e0488039207030c920b440c5209e4000a08250592002a077c0086057c04fa07af0780013e042704d304d30ba005f70446022c06fa041809f700fa084804d004a3053202bf074b08b008940a35091f02ef0a6c093c06740a2f068e06690142017b03200b120ad30bb009e8013f028b0b490672048f0c1c0625066407700a3509e7045f015d0aa2039609000c1d075a0af2022e006800390aca00500ab70934046e03960c9305640bfd07ae02e90791021d04ec02a20b4801db058107f1017306a90c9e065d0a7a0a59013f06bc0b190b35050603260b2a081401f4008a02bc0b2a0b0b026901300bd004ff024a0314051d087f0c650880054501b9030b0651079600250266023b016b08f206d8022100ed0c2a048b038d094800590562040802d109370bea0c9d09f6035a07a3059f08cc072c023b08eb01a203440c21049605030463065a07c1014403ec023108b506030b36020203f108850cca083707fc063501e202a5070203cc0b4201ea0c73056a0ad4013f09c401b405670ada0cf105ff0aaa01bb06e906f90607014c09080a7302ed00dc0a440806039f036c058d018f00f2027508780bf40cf5097804240482089c0417043b01050a400b7302370cdc070c07b806ac07c308e008640b63023206b705de05d90b3e0068083e085c093b042a043206e4004c02d700e4018305fa04a0057b030e05a50b8b0b630ace057b07d0008c00fe001f068e06
+tv_dec_rounded_v = 0x310ca0011004510751078106a001b0051004e0044003910af1080000a001e0042108c10940032108100470027002400381068106a0018106e0040000610b5107700270020000c109910af1088106310ce0048106d000910af1084003310ce004e004a001e004f1087002d000b005d000810610041004d0007002d0002108610ba001e004c1091004310c910a310c610b910a4003d000a00140037002310c4003c10951070000d0005107d000610ba001310ce004c1098106700200002108310c1004700221084003e0040000c109b0058106a00110045107a001b0051004910ae0040000910aa001c1094003210851077002910a40030000310c8106400310047002d000a0018106d000d000310c2108d0002108310c51072108610b7002310c610b510740032108400340037002310cb005b005210840034003b005e0042108810621088106e004d000610be004a001b005f10810042108b005c1094003f108d000610bf108910a5107f108310cc109c109d00040035107610b51072108a001b0050000c109a001310c310cc109e00440035107c1097002f108d000a001b005c1097002e004910ab005a001c1097002f10840034003c109e004400351078106d00051074003610b40032108610bc1092108c109610be004c109d000f1084003910ac109a00140032108310c310ce004b005c109b005c10900007002a0010000
+tv_dec_u_ = 0x4d0020fa9afad100dffcbdfe9b0437060afd13faba0144fa820392fc2d04380357fdb2047c0205fa60fd1304ffff8a05400312fc45ffa2fde3fbcafd5aff0106e4035a03abfb0a03c1fa47fd7cfa4fffb7011e04a5ffd5fb8afb70066afa750402fc69fab5fe6bfd54fb08011203ac05b6fcbc03fa015d05f2feeafbb7fe5001ddff1afb2d022ffecefbc702020534fd920411037ffd7afd0a03b8ffbdffe10150fa04000c053c06a40008068fff870257fdd0facdfa9dfc0afe8d011e052fff61fd4903d5fa3bfdf1fbb803ea023d059103fafff0fc240465fe1cfed905dcfce1faa0ff0c06e7000d024305edfae104adf91bfa5b069f05c90567fcce0066022cfed604bb0443fb840397fe3002270076030d04b3fef60357028901c2027a0552fa4b024ffc4dfd2b06c90234fb0d002ffd9b05860142fdab0511fe70fb47ffbb0300fc01fc97fa3c024203fbfa6b0151019500a9fbe4053301a2fefa006ffd22fda8fdfd0213003aff8b0455047402ff03befebb04ab01f8fd0e00a401b3fdfc016a0589fe74fe3c01b5fee5fd27fc6a05bffb5bff83020203a4f92f03f102b3feb3fe08036e064803550185002200abfa6effc1003400a6fc590654fea9f9dd027500aefb9201e704abfeff02cf002700c3fb220303ff8dfb4c011afe97ff490027036ffe35fe04044efd04fece03ad05a3006101520416fb1002500146025c032f03d5fd8cfbbc05ed0404fbc4fa9ffbe0f90f064f01d905b701350232ff2cfb850254045ffb36fb89039efff40531016e0275fcd0fe8d0370fa340364016005f5fe8a03e803ed01dcff87031102a9047afa64fcbbffa6fa2ffb140260fe1cfbc103e8008bf960fa970262facafb70ff0b0645fd9505b3f9df03d4faebfb6ffaa0fe3bffb4fef5fa38007403750693fc9bfbddffcd02ff0383fb6d063800910344039a0028064c0531fe56016f069bfbad026afc81fa9b0361fadefb53fb48fc700129fa0900affc210107fcdb03eeff4efe23fc9e00a10158fdbcfce605c7f9330584059b018602d0f928fba9ffa3048901500585fef4fea7fe8c04aafe0d0025022afe59ff3a00fc0517fd9dfb8504ab026cfc5901edfd8df913fc2dfcc2fcd5fb20fecb015e02f300870536fed4f9c40552fc72fb9a052afb9003fd020b05ba00c405a802fbfea0fd3dfb10067b06b1fefafabb04200671ffc904c0016f0206fd91fb42fa6e0042fe90fc8afd50031805b1f99402090557039c05f5fa4c035ffdd6ff3a0285fe63065202e003cdff42fc36061e05b20437fb310588fe30003bfada04b1ff81f9ff03fe055efae705d9027d0619fd5202c601b4fe86fa7900b8feeeff89fbbf00600128fb0dfb16fbd602e1ff41008400b80304029ffbe4fdc105b7fd53ff8801ebfc000255060d0568fac4fc86f9ecfd2903c4fd44fc
+tv_dec_red_s = 0xd60cde0c630af50419082d00560ccb09a302dc03eb08e7032e0631097e011a05e10643068d04fb0ca103670c1805b5025702c201e3042e0344008d07f507ac0747012b0a7b03c20b7a0cbf020a091709cf0aa5008e01c702bd0cf9024105a2006b0bce07ac0b030ce40b420b46031f051f0a68039b002608ba047407300ca50cad084906bc0aa30415069a04560464038008420a590b770a8c02ab0786063e043309f8002703880a200af203a008110b0001bd0cc4062902e10a16088a08d601240a62094f085f089b03b60759007a04f40cc00cd5067d067000fc08b2022b0ceb03c5086c020d03b70249048e04ce0abe0b7b0cff07750a98026b09b506890c58087e056009ef068e00ab0cc108c300fa0022004d0aa40a56040c0831046e077f054c04d902780a2d03f1055602dc045e05f107da020e0410038c0ba602ac062f073801e8071201f10803096b02d0008e042f0a670b6601210b8f03c90655051205c2096d0c590a4f04f60c5f0b8400600b1e006c0c6a0a000d770b9e080509d90a7d084b03bf00c50ba30b3d01ee07cf08540c2d008d02e90b420bed07ed05c1092b05fe056d09e10b5b0107034b064f05e906d4083e0c5206eb01dc04f700ce06ce05d90750052502360a1b069b088f0c7001bc084f09530b4709d601fc08270ab0098b06a7005b02be09a406fe019a0830074503190517030403c7083a06b6078d08c409b805b6008205b8058d092f055e02f8074804bf08fa073b023f02a90776064d061900f20c22002a04b109df04bc05ee059508a8029009680677041c06b30a6f03ea01ec00430b320a540aa00c230b9f0339078e059701b10b9e03b60b090792099a050f0a7c088907a9086101d501f50bfa0738002804550216055103e0047504c2047c04af0641027e0a44005701c400610983012704710c9f0b7f081e0ac209f50488011606f503dc06020b420c3c09a602de0695083b031304e60a1300da074800520b1f07290c4c0a290af606ab09c40b9e05a501d40a300b060c77069302360ce3051c03910a7f07e703a50c69002c09da030d0032065d06a207e30c55014f004000150c000b20089101bc043f0a0c05080513071b05dc03f2059709640092082f0caa0820063808430c82005402d30070095708b30b650aae009a020f0303018a0952040e0c6d0c9603010a0d0a410a9a034300c509e601b4063d0cc003df024a04eb072108110469056b0ae90a9f08420cf40bc408290130049407d40154017402b3004501fa0021032a05f402410cae035400a00a09081d0ae80621063102c300a2073d09e803980c8c0170069908f00064051805c40ca40c52014a0b4200c902310c9d043c081e0421041f029a0adb032c02cc04a702a70cf8081b0cd703ac05c70b590c66089709dd061a063f0765061b02c6072e06
+tv_dec_stu = 0xb20530fbed03a60026faabf95c01a70531fdb50465fc590327fc3206ce01d6fec9fac4fc65fc1dfb63fd73fb1afbc0fc0a00f5ff0502c9ff86fe5b062605e400710218fc4d0670fdc2fd82028df9f605e9feceff42010404c3fb7a031e0689048c0596fa48fe9002ddfb9a00d5fe2f012d002e0451fd6afa700219016801d1fd4afb30059dfcddfda9055cfd1a06c5fe51044903ad0094fb7e03f00229ffdffc8503d3fa52068ffaa4fa44013dfe6efbc205870596fc9aff36fc5f00c6fae105bffd2c02a901b7fc2205b3ff33fdd4fee2f96dfbd803c5fa3001a20539046d048dfe71066404adfac4fc04fda8fa3efae0012ffdebfc40006bff8bf97303f9fd93027cfad701dbffbe005efaa905edfa9cfa4cfb23ff25faf0fa26059d02cb0545047a0098fc6bfbc7023efde90118ffdcfe3bff7601c9fcf4fccd0518050efbc1fff9fa71004e05ee00c0045805c20188052d0277fd5801ab054afd9d029efb9dfaa304d2011304a2fa5a0212ff210362037efa01fd2afa73046a00470146fb3eff1c0017033d01a30564fffe026c055efdbcf9bc03acfb1ffcb5008efae1059d034ffcee04ebfd78ffda01ff02ab0275020e03910388034d04e9024afa820008010cfaabfcb60411036ffa7005cdfc71fbc80251fe5005f7fc1d0001fc5efc580402fd89fbeefcf3fa52051bffb604b8059ffc2c057b033606d0fbd0015500
+tv_dec_mp = 0x7f0670062300aaf92a00d5ff44000900def92b00daf937fac9ffcef9d2ff0a065700fcffdaf90300acf9fcf955fa800677068bf99bffb7f95a06a5f93b066d06ffff5806b3f950ffceff6f06f3ff3b06f705b2f98eff8cf92d00c6ff1306570054ff09fa97f9610692f93600daf9a1ff5406e2ffbef966060000b7ffb8f98f005606b0ff2300330687f9340017069bff4006f7ff23000c06c2ff80ff070061063c067dffaef94106acff8cff230032066f0659ff2a00e6f93a06a1ff5a00500651064400780688f9beff4d008dffdbf99eff330638008bff70000e00d7ff240653068ff92d06f2f9fcff3c0678001200900061005506c0ffc5fff5ffcdff1706ddff5406c9ffa5f91200720687f933003406d4ff0d002b0030003b06d3ff66061bfad6f9a7f9b5ff7900020687001800d3f97506aaf977064c06e3ffc8ff1200bff92700100692ffe2ffa0f988ffdeff2800c3f998f9c8f9050076ffa30052003306bdf91efa7e06aeff96f91e009ff95f0652063f062600edf9e6f9d9f95a067206e4ffa9f963008df9ccffc2f974ffe20594000506c3f9d1ff1b0011facfff24062106f2ffa5ff3806c6ffc1f9c5ff7c063200afff3906930057000600ff05c8ff440094f9aaf92f00b100f105f3ffaffff8f90f0090ffc9ffb300efffe1f93906beff170652062d00def915002a00f8ff210084004606caf99ff9d0ffabff
+tv_dec_m = 0x0badf4fba64b5e4d59898d998d822f846aa1271f250eaff7554d53894c822d38   ### This is hashed tv_enc_m
+
+
 class Rq:
     """
     Name:        Rq
@@ -85,6 +94,15 @@ class Rq:
         tmp = self.__class__()
         for i in range(n):
             tmp.coeff[i] = (self.coeff[i] + other.coeff[i]) % q ### reduction
+            #上の%qで値が正になるので、ref実装に合わせるため[-q/2,q/2]の範囲に戻す。
+            if tmp.coeff[i] > 1664:
+                tmp.coeff[i] -= q 
+        return tmp
+
+    def __sub__(self, other):
+        tmp = self.__class__()
+        for i in range(n):
+            tmp.coeff[i] = (self.coeff[i] - other.coeff[i]) % q ### reduction
             #上の%qで値が正になるので、ref実装に合わせるため[-q/2,q/2]の範囲に戻す。
             if tmp.coeff[i] > 1664:
                 tmp.coeff[i] -= q 
@@ -242,7 +260,8 @@ class Rq:
         return val
 
     @classmethod
-    def decode(cls, barray):
+    def decode(cls, barray) -> Rq:
+        ### d = 12
         poly = cls()
         for i in range(256//2):
             b0 = barray[3*i]
@@ -259,6 +278,7 @@ class Rq:
         
     @classmethod
     def msgdecode(cls, msg):
+        ### d = 1
         poly = cls()
         msg = msg.to_bytes(32, 'big')
         for i in range(32):
@@ -273,7 +293,26 @@ class Rq:
         return poly
     
     @classmethod
+    def msgencode(cls, poly: Rq) -> int:
+        ### d = 1
+        msg = 0
+        for i in range(32):
+            t = 0
+            for j in range(8):
+                coeff = poly.coeff[8*i+j]
+                coeff <<= 1
+                coeff += 1665
+                coeff *= 80635
+                coeff >>= 28
+                coeff &= 1
+                t |= coeff << j
+            msg <<= 8
+            msg |= t
+        return msg
+
+    @classmethod
     def polyvecCompEncode(cls, polyvec):
+        ### d = 10
         barray = bytearray()
         ### compress and encode
         for i in range(k):
@@ -294,6 +333,7 @@ class Rq:
         return barray
 
     def polyCompEncode(self):
+        ### d = 4
         barray = bytearray()
         ### compress and encode
         for i in range(256//8):
@@ -311,15 +351,57 @@ class Rq:
 
         return barray
 
-def hash_H(din: int) -> string:
+    @classmethod
+    def polyvecDecodeDecomp(cls, barray: bytearray) -> polyvec:
+        ### d = 10
+        polyvec = [Rq() for x in range(k)]
+        list_t = [0] * 4
+
+        ### decode and decompress
+        for i in range(k):
+            for j in range(256//4):
+                list_int= [x for x in barray[i*320+j*5:i*320+j*5+5]]
+                list_t[0] = (list_int[0] >> 0) | (list_int[1] << 8)
+                list_t[1] = (list_int[1] >> 2) | (list_int[2] << 6)
+                list_t[2] = (list_int[2] >> 4) | (list_int[3] << 4)
+                list_t[3] = (list_int[3] >> 6) | (list_int[4] << 2)
+
+                for kk in range(4):
+                    polyvec[i].coeff[4*j+kk] = ((list_t[kk] & 0x3ff) * q + 512) >> 10
+
+        return polyvec
+
+    @classmethod
+    def polyDecodeDecomp(cls, barray: bytearray) -> Rq:
+        ### d = 4
+        poly = Rq()
+        list_t = [0] * 4
+
+        ### decode and decompress
+        for i in range(256//2):
+            integer = barray[i]
+            poly.coeff[2*i + 0] = ((integer & 0xf) * q + 8) >> 4
+            poly.coeff[2*i + 1] = ((integer >>  4) * q + 8) >> 4
+
+        return poly
+
+
+def hash_H(din: int) -> str:
     s = hashlib.sha3_256()
     s.update(din.to_bytes((din.bit_length()+7)//8, 'big'))
     return f'{s.hexdigest():064}'
 
-def hash_G(din: int) -> string:
+def hash_G(din: int) -> str:
     s = hashlib.sha3_512()
     s.update(din.to_bytes((din.bit_length()+7)//8, 'big'))
     return f'{s.hexdigest():0128}'
+
+def KDF(din: int) -> str:
+    s = hashlib.shake_256()
+    s.update(din.to_bytes((din.bit_length()+7)//8, 'big'))
+    K = s.hexdigest(32)
+
+    return K
 
 class MyKyber:
     """
@@ -399,7 +481,7 @@ class MyKyber:
         ### pk and sk are int type
         return pk, sk
 
-    def cca_keygen(self, z, d):
+    def cca_keygen(self, z: int, d: int) -> bytearray:
         pk, sk_ = self.cpa_keygen(d)
         H = int(hash_H(pk), 16).to_bytes(32, 'big')
         sk_ = sk_.to_bytes(768, 'big')
@@ -411,7 +493,7 @@ class MyKyber:
         ### pk and sk are byte array
         return pk, sk
     
-    def enc(self, pk, m, coin):
+    def enc(self, pk: bytearray, m: str, coin: int) -> bytearray:
         t_ = [Rq.decode(pk[12*32*i:]) for i in range(k)]
         assert self.unpack(t_) == tv_enc_t_, f'{t_} != {tv_enc_t_:x}'
 
@@ -450,7 +532,7 @@ class MyKyber:
         mu = Rq.msgdecode(tv_enc_hashed_m)
         assert self.unpack(mu) == tv_enc_mu, f'{mu} != {tv_enc_mu:x}' 
 
-        # Matrix-vector multiplication
+        # Vector-vector multiplication
         tty = Rq()
         for i in range(k):
                 tty = tty + (t_[i] @ ntt_y[i])
@@ -465,24 +547,74 @@ class MyKyber:
 
         return c1 + c2
     
-    def cca_enc(self, ek, m):
+    def cca_enc(self, pk: bytearray, m: int) -> (bytearray, str):
         m = hash_H(m)
         Kr = hash_G(int(m+hash_H(int.from_bytes(pk, 'big')), 16))
         K = Kr[:64]
         r = int(Kr[64:], 16)
         c = self.enc(pk, m, r)
         ### KDF
-        s = hashlib.shake_256()
         kdf_in = int(K + hash_H(int.from_bytes(c, 'big')), 16)
-        s.update(kdf_in.to_bytes((kdf_in.bit_length()+7)//8, 'big'))
-        K = s.hexdigest(32)
+        K = KDF(kdf_in)
 
         return c, K
 
+    def dec(self, dk: bytearray, c: bytearray) -> int:
+        u = Rq.polyvecDecodeDecomp(c)
+        assert self.unpack(u) == tv_dec_rounded_u, f'{u} != {tv_dec_rounded_u:x}' 
+
+        v = Rq.polyDecodeDecomp(c[32*du*k:])
+        assert self.unpack(v) == tv_dec_rounded_v, f'{v} != {tv_dec_rounded_v:x}'
+
+        ntt_s = [Rq.decode(dk), Rq.decode(dk[384:])]    ### Should be run k times
+        assert self.unpack(ntt_s) == tv_dec_red_s, f'{ntt_s} != {tv_dec_red_s:x}'   ### tv_s_ not reduced.
+
+        ntt_u = [Rq.ntt(u[i]) for i in range(k)]
+        assert self.unpack(ntt_u) == tv_dec_u_, f'{ntt_u} != {tv_dec_u_:x}'
+
+        # Vector-vector multiplication
+        stu = Rq()
+        for i in range(k):
+                stu = stu + (ntt_s[i] @ ntt_u[i])
+        intt_stu = Rq.intt(stu)
+        assert self.unpack(intt_stu) == tv_dec_stu, f'{intt_stu} != {tv_dec_stu:x}'
+
+        mp = v - intt_stu
+        assert self.unpack(mp) == tv_dec_mp, f'{mp} != {tv_dec_mp:x}'
+
+        m = Rq.msgencode(mp)
+        assert m == tv_dec_m, f'{m} != {tv_dec_m:x}'
+
+        return m
+
+    def cca_dec(self, c: bytearray, sk: bytearray):
+        dk = sk[:384*k]
+        pk = sk[384*k:768*k+32]
+        h = sk[768*k+32:768*k+64]
+        z = sk[768*k+64:768*k+96]
+        mp = self.dec(dk, c)
+
+        Kprp = hash_G(int.from_bytes(mp.to_bytes(32, 'big') + h, 'big'))
+        Kp = Kprp[:64]
+        rp = int(Kprp[64:], 16)
+        cp = self.enc(pk, mp, rp)
+        
+        ### FO transform
+        if c == cp:
+            kdf_in = int(Kp + hash_H(int.from_bytes(c, 'big')), 16)
+            K = KDF(kdf_in)
+        else:
+            kdf_in = int(z + hash_H(int.from_bytes(c, 'big')), 16)
+            K = KDF(kdf_in)
+
+        return K
+
+
 inst = MyKyber()
 pk, sk = inst.cca_keygen(tv_z, tv_d)
-print(inst.cca_enc(pk, tv_enc_m))
+c, K = inst.cca_enc(pk, tv_enc_m)
+print(f'Bob (enc) side shared secret K: {K}')
 
-# print(f'pk:\n {hex(int.from_bytes(pk, "big"))}')
-# print(f'sk:\n {sk}')
+K = inst.cca_dec(c, sk)
+print(f'Alice (dec) side shared secret K: {K}')
 
