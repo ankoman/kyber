@@ -389,12 +389,12 @@ class Rq:
 def hash_H(din: int) -> str:
     s = hashlib.sha3_256()
     s.update(din.to_bytes((din.bit_length()+7)//8, 'big'))
-    return f'{s.hexdigest():064}'
+    return s.hexdigest()
 
 def hash_G(din: int) -> str:
     s = hashlib.sha3_512()
     s.update(din.to_bytes((din.bit_length()+7)//8, 'big'))
-    return f'{s.hexdigest():0128}'
+    return s.hexdigest()
 
 def KDF(din: int) -> str:
     s = hashlib.shake_256()
