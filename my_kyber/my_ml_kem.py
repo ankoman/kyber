@@ -136,7 +136,7 @@ class Rq:
     def sample_uniform(cls, rho, j, i) -> Rq:
         poly = cls()
         s = hashlib.shake_128()
-        s.update(bytes.fromhex(hex(rho*256*256 + j * 256 + i)[2:]))
+        s.update(rho + bytes([j]) + bytes([i]))
         xof_out = bytes.fromhex(s.hexdigest(672))
 
         sample_cnt = 0
@@ -159,8 +159,8 @@ class Rq:
         ### PRF part
         poly = cls()
         s = hashlib.shake_256()
-        s.update(bytes.fromhex(hex(sigma*256 + nonce)[2:]))
-        prf_out = bytes.fromhex(s.hexdigest(192))
+        s.update(sigma + bytes([nonce]))
+        prf_out = s.digest(192)
 
         ### CBD part
         if eta == 3:
@@ -230,10 +230,9 @@ class Rq:
         return poly
         
     @classmethod
-    def msgdecode(cls, msg):
+    def msgdecode(cls, msg: bytearray):
         ### d = 1
         poly = cls()
-        msg = msg.to_bytes(32, 'big')
         for i in range(32):
             t = msg[i]
             for j in range(8):
@@ -275,8 +274,7 @@ class Rq:
                     list_t[kk] = polyvec[i][j*4+kk]
                     if list_t[kk] < 0:
                         list_t[kk] += q
-                    list_t[kk] = (((list_t[kk] << 10) + 1665)*1290167) >> 32    ###  & 0x3ffいらない？
-                
+                    list_t[kk] = ((((list_t[kk] << 10) + 1665)*1290167) >> 32) & 0x3ff    ###  & 0x3ffいらない？ -> いる
                 barray.append(list_t[0] & 0xff)
                 barray.append(list_t[0] >> 8 | (list_t[1] << 2) & 0xff)
                 barray.append(list_t[1] >> 6 | (list_t[2] << 4) & 0xff)
@@ -339,20 +337,20 @@ class Rq:
         return poly
 
 
-def hash_H(din: int) -> str:
+def hash_H(din: bytearray) -> str:
     s = hashlib.sha3_256()
-    s.update(din.to_bytes((din.bit_length()+7)//8, 'big'))
-    return s.hexdigest()
+    s.update(din)
+    return s.digest()
 
-def hash_G(din: int) -> str:
+def hash_G(din: bytearray) -> str:
     s = hashlib.sha3_512()
-    s.update(din.to_bytes((din.bit_length()+7)//8, 'big'))
-    return s.hexdigest()
+    s.update(din)
+    return s.digest()
 
-def hash_J(din: int) -> str:
+def hash_J(din: bytearray) -> str:
     s = hashlib.shake_256()
-    s.update(din.to_bytes((din.bit_length()+7)//8, 'big'))
-    K = s.hexdigest(32)
+    s.update(din)
+    K = s.digest(32)
 
     return K
 
@@ -382,18 +380,17 @@ class my_ML_KEM_512:
             for elem in poly:
                 if elem < 0:
                     #ref実装のテストベクタに合わせるため16ビット符号付数に変換
-                    elem += 0x10000
+                    elem += q
                 val <<= 16
                 # Little endian
                 val += elem >> 8
                 val += (elem & 0xff) << 8
         return val
 
-    def cpa_keygen(self, d):
-        Gout = hash_G((d << 8) + k)
-        rho = int(Gout[:64], 16)
-        sigma = int(Gout[64:], 16)
-
+    def cpa_keygen(self, d: bytearray) -> bytearray:
+        Gout = hash_G((d + bytes([k])))
+        rho = Gout[:32]
+        sigma = Gout[32:]
         A = self.genA(rho)
 
         s = []
@@ -416,28 +413,25 @@ class my_ML_KEM_512:
         
         ntt_t = [As[i] + ntt_e[i] for i in range(k)]
 
-        pk = (((ntt_t[0].encode() << 12*n) | ntt_t[1].encode()) << 256) | rho
+        pk = ((((ntt_t[0].encode() << 12*n) | ntt_t[1].encode()) << 256) | int.from_bytes(rho, 'big')).to_bytes(800, 'big')
 
-        sk = ((ntt_s[0].encode() << 12*n) | ntt_s[1].encode())
+        sk = ((ntt_s[0].encode() << 12*n) | ntt_s[1].encode()).to_bytes(768, 'big')
 
         ### pk and sk are int type
         return pk, sk
 
-    def cca_keygen(self, z: int, d: int) -> bytearray:
+    def cca_keygen(self, z: bytearray, d: bytearray) -> bytearray:
         pk, sk_ = self.cpa_keygen(d)
-        H = int(hash_H(pk), 16).to_bytes(32, 'big')
-        sk_ = sk_.to_bytes(768, 'big')
-        pk = pk.to_bytes(768 + 32, 'big')
-        z = z.to_bytes(32, 'big')
+        H = hash_H(pk)
         sk = sk_ + pk + H + z
 
         ### pk and sk are byte array
         return pk, sk
     
-    def enc(self, pk: bytearray, m: str, coin: int) -> bytearray:
+    def enc(self, pk: bytearray, m: bytearray, coin: bytearray) -> bytearray:
         t_ = [Rq.decode(pk[12*32*i:]) for i in range(k)]
 
-        rho = int.from_bytes(pk[-32:], 'big')
+        rho = pk[-32:]
 
         At = self.genA(rho, True)
 
@@ -460,8 +454,9 @@ class my_ML_KEM_512:
                 Aty[i] = Aty[i] + (At[i][j] @ ntt_y[j])
 
         u = [Rq.intt(Aty[i]) + e1[i] for i in range(k)]
+        # print(hex(self.unpack(e1)))
 
-        mu = Rq.msgdecode(int(m, 16))
+        mu = Rq.msgdecode(m)
 
         # Vector-vector multiplication
         tty = Rq()
@@ -475,17 +470,15 @@ class my_ML_KEM_512:
 
         return c1 + c2
     
-    def cca_enc(self, pk: bytearray, m: int) -> (bytearray, str):
-        m = hex(m)[2:]
-        Kr = hash_G(int(m+hash_H(int.from_bytes(pk, 'big')), 16))
-        K = Kr[:64]
-
-        r = int(Kr[64:], 16)
+    def cca_enc(self, pk: bytearray, m: bytearray) -> (bytearray, str):
+        Kr = hash_G(m + hash_H(pk))
+        K = Kr[:32]
+        r = Kr[32:]
         c = self.enc(pk, m, r)
 
         return c, K
 
-    def dec(self, dk: bytearray, c: bytearray) -> int:
+    def dec(self, dk: bytearray, c: bytearray) -> bytearray:
         u = Rq.polyvecDecodeDecomp(c)
 
         v = Rq.polyDecodeDecomp(c[32*du*k:])
@@ -504,7 +497,7 @@ class my_ML_KEM_512:
 
         m = Rq.msgencode(mp)
 
-        return m
+        return m.to_bytes(32, 'big')
 
     def cca_dec(self, c: bytearray, sk: bytearray):
         dk = sk[:384*k]
@@ -513,47 +506,84 @@ class my_ML_KEM_512:
         z = sk[768*k+64:768*k+96]
         mp = self.dec(dk, c)
 
-        Kprp = hash_G(int.from_bytes(mp.to_bytes(32, 'big') + h, 'big'))
-        Kp = Kprp[:64]
-        rp = int(Kprp[64:], 16)
-        K_bar = hash_J(int.from_bytes(z + c, 'big'))
-        cp = self.enc(pk, hex(mp)[2:], rp)
+        Kprp = hash_G(mp + h)
+        Kp = Kprp[:32]
+        rp = Kprp[32:]
+        K_bar = hash_J(z + c)
+        cp = self.enc(pk, mp, rp)
         
         if c != cp:
             Kp = K_bar
 
         return Kp
 
-for idx in range(10):
-    start = idx * 8
-    with open(r'../kat/ml_kem_512.kat', 'r') as f:
-        tv = f.readlines()[start:start+7]
+def KAT_ref(N):
+    for idx in range(N):
+        print(f'#{idx} test vector...')
+        start = idx * 11
+        with open(r'../kat/ml_kem_512_ref.kat', 'r') as f:
+            tv = f.readlines()[start:start+10]
 
-    tv_d = int(tv[0].split('=')[1], 16)
-    tv_z = int(tv[1].split('=')[1], 16)
-    tv_pk = int(tv[2].split('=')[1], 16)
-    tv_sk = int(tv[3].split('=')[1], 16)
-    tv_m = int(tv[4].split('=')[1], 16)
-    tv_ct = int(tv[5].split('=')[1], 16)
-    tv_ss = int(tv[6].split('=')[1], 16)
+        tv_d = bytes.fromhex(tv[0].split(':')[1])
+        tv_z = bytes.fromhex(tv[1].split(':')[1])
+        tv_pk = bytes.fromhex(tv[2].split(':')[1])
+        tv_sk = bytes.fromhex(tv[3].split(':')[1])
+        tv_m = bytes.fromhex(tv[4].split(':')[1])
+        tv_ct = bytes.fromhex(tv[5].split(':')[1])
+        tv_ss = bytes.fromhex(tv[6].split(':')[1])
+        tv_ss = bytes.fromhex(tv[7].split(':')[1])
+        tv_ct_p = bytes.fromhex(tv[8].split(':')[1])
+        tv_z_ss = bytes.fromhex(tv[9].split(':')[1])
 
-    inst = my_ML_KEM_512()
-    pk, sk = inst.cca_keygen(tv_z, tv_d)
-    pk_int = int.from_bytes(pk, 'big')
-    sk_int = int.from_bytes(sk, 'big')
-    assert pk_int == tv_pk, f'{pk_int:x} != {tv_pk:x}'
-    assert sk_int == tv_sk, f'{sk_int:x} != {tv_sk:x}'
+        inst = my_ML_KEM_512()
+        pk, sk = inst.cca_keygen(tv_z, tv_d)
+        assert pk == tv_pk, f'{pk:x} != {tv_pk:x}'
+        assert sk == tv_sk, f'{sk:x} != {tv_sk:x}'
 
-    c, K = inst.cca_enc(pk, tv_m)
-    c_int = int.from_bytes(c, 'big')
-    K_int = int(K, 16)
-    print(hex(c_int-tv_ct))
-    assert c_int == tv_ct, f'{c_int:x} != {tv_ct:x}'
-    assert K_int == tv_ss, f'{K_int:x} != {tv_ss:x}'
-    print(f'Bob (enc) side shared secret K: {K}')
+        c, K = inst.cca_enc(pk, tv_m)
+        assert c == tv_ct, f'{c:x} != {tv_ct:x}'
+        assert K == tv_ss, f'{K:x} != {tv_ss:x}'
+        print(f'Bob (enc) side shared secret K: {K}')
 
-    K = inst.cca_dec(c, sk)
-    K_int = int(K, 16)
-    assert K_int == tv_ss, f'{K_int:x} != {tv_ss:x}'
-    print(f'Alice (dec) side shared secret K: {K}')
+        K = inst.cca_dec(c, sk)
+        assert K == tv_ss, f'{K:x} != {tv_ss:x}'
+        print(f'Alice (dec) side shared secret K: {K}')
 
+        K = inst.cca_dec(tv_ct_p, sk)
+        assert K == tv_z_ss, f'{K:x} != {tv_z_ss:x}'
+        print(f'Pseudorandom shared secret Kp: {K}')
+
+def KAT_itzmeanjan(N):
+    for idx in range(N):
+        print(f'#{idx} test vector...')
+        start = idx * 8
+        with open(r'../kat/ml_kem_512.kat', 'r') as f:
+            tv = f.readlines()[start:start+7]
+
+        tv_d = bytes.fromhex(tv[0].split('=')[1])
+        tv_z = bytes.fromhex(tv[1].split('=')[1])
+        tv_pk = bytes.fromhex(tv[2].split('=')[1])
+        tv_sk = bytes.fromhex(tv[3].split('=')[1])
+        tv_m = bytes.fromhex(tv[4].split('=')[1])
+        tv_ct = bytes.fromhex(tv[5].split('=')[1])
+        tv_ss = bytes.fromhex(tv[6].split('=')[1])
+
+        inst = my_ML_KEM_512()
+        pk, sk = inst.cca_keygen(tv_z, tv_d)
+        assert pk == tv_pk, f'{pk:x} != {tv_pk:x}'
+        assert sk == tv_sk, f'{sk:x} != {tv_sk:x}'
+
+        c, K = inst.cca_enc(pk, tv_m)
+        assert c == tv_ct, f'{c:x} != {tv_ct:x}'
+        assert K == tv_ss, f'{K:x} != {tv_ss:x}'
+        print(f'Bob (enc) side shared secret K: {K}')
+
+        K = inst.cca_dec(c, sk)
+        assert K == tv_ss, f'{K:x} != {tv_ss:x}'
+        print(f'Alice (dec) side shared secret K: {K}')
+
+
+if __name__ == "__main__":
+    N = 1000
+    KAT_ref(N)
+    KAT_itzmeanjan(N)

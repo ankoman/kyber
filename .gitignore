@@ -3,5 +3,5 @@
 !/ref/
 /ref/*
 !/ref/Makefile
-!/ref/indcpa.c
+!/ref/*.c
 !/my_kyber/

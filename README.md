@@ -1,3 +1,3 @@
 # my_kyber
 
-KAT file from `https://github.com/itzmeanjan/ml-kem/tree/master/kats`
+KAT file from `https://github.com/itzmeanjan/ml-kem/tree/master/kats` or the reference implementation.
