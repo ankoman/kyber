@@ -63,14 +63,28 @@ def ModSwitch(x0, x1):
     y1 = (x1 * 2**11) // q
     return y0, y1
 
-x0 = random.randint(0, q-1)
-x1 = random.randint(0, q-1)
-x = (x0 + x1) % q
-print(f'{x0=} + {x1=} = {x=}')  # A maskによる係数
-y0, y1 = A2B(x0, x1)
-print(f'{y0=} ^ {y1=} = {(y0^y1)%q=}')  # B maskによる係数
+# x0 = random.randint(0, q-1)
+# x1 = random.randint(0, q-1)
+# x = (x0 + x1) % q
+# print(f'{x0=} + {x1=} = {x=}')  # A maskによる係数
+# y0, y1 = A2B(x0, x1)
+# print(f'{y0=} ^ {y1=} = {(y0^y1)%q=}')  # B maskによる係数
 
-### Comp1
-y0, y1 = ModSwitch(x0, x1)
-print(f'{y0=} + {y1=} = {(y0+y1)%q=}')  # A maskによる係数
-y0, y1 = A2B(y0, y1)
+# ### Comp1
+# y0, y1 = ModSwitch(x0, x1)
+# print(f'{y0=} + {y1=} = {(y0+y1)%q=}')  # A maskによる係数
+# y0, y1 = A2B(y0, y1)
+
+def sanityCheck(val, tau):
+    r = random.randint(0, q-1)
+    t1 = (val - (832-tau)) % q
+    t2 = 2*t1 % q
+    if t2 < 4*tau:
+        print('invalid')
+    else:
+        print('valid')
+
+tau = 100
+r = 2596
+print(f'{r=}, {832-tau <= r and r < 832+tau}, {2496-tau < r and r < 2496+tau}')
+sanityCheck(r, 100)
