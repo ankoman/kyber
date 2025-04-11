@@ -6,7 +6,7 @@ eta2 = 2
 du = 10
 dv = 4
 
-import random
+import random, math
 
 class Rq:
     """
@@ -84,7 +84,28 @@ def sanityCheck(val, tau):
     else:
         print('valid')
 
+def ShowHWProb():
+    sum = 0
+    for i in range(129):
+        c = math.comb(256, i)
+        p = c / (2**256)
+        sum += p
+        print(f'{i=}, {p=}, {sum=}, 2^{math.log2(sum):.5}')
+    
 tau = 100
 r = 2596
 print(f'{r=}, {832-tau <= r and r < 832+tau}, {2496-tau < r and r < 2496+tau}')
 sanityCheck(r, 100)
+
+ShowHWProb()
+
+p = 0.954
+N = 5500
+for a in range(10):
+    correctInEq_rate = 1 - p + (p/(2**a))
+    incorrectInEq_rate = p/(2**a)
+    availableInEq_rate = 1 - p + (p/(2**(a-1)))
+    correct_rate = correctInEq_rate / availableInEq_rate
+
+    print(f'{a=}, {availableInEq_rate=}, {correctInEq_rate=}, {incorrectInEq_rate=}, {correct_rate=}')
+    print(f'{N/availableInEq_rate=}')
