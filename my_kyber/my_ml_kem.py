@@ -62,6 +62,7 @@ class Rq:
         return tmp
 
     def __matmul__(self, other: Rq) -> Rq:
+        ### Polynomial mult
         tmp = self.__class__()
         for i in range(0, n, 2):
             tmp.coeff[i] = self.coeff[i+1] * other.coeff[i+1]
@@ -73,6 +74,13 @@ class Rq:
 
         return tmp
 
+    def __mul__(self, scalar: int) -> Rq:
+        ### Scalar mult
+        tmp = self.__class__()
+        for i in range(n):
+            tmp.coeff[i] = self.coeff[i] * scalar % q
+        return tmp
+    
     @classmethod
     def ntt(cls, poly_in):
         # Straight forward version
