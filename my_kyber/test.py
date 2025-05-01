@@ -1,5 +1,11 @@
 from my_ml_kem import *
-import random
+import random, copy
+
+def xtimes(poly: Rq, p: int):
+    for i in range(p):
+        coeff = poly.coeff.pop(0)
+        coeff = coeff * -1
+        poly.coeff.append(coeff if coeff > 0 else coeff + q)
 
 class test_ML_KEM(my_ML_KEM_512):
     def cca_dec_out_mp(self, c: bytearray, sk: bytearray):
@@ -20,44 +26,111 @@ class test_ML_KEM(my_ML_KEM_512):
 
         return Kp, mp
     
-    def pk_masked_cca_dec(self, c: bytearray, sk: bytearray, row: int, scalar: int, offset, rot: int):
+    def pk_masked_cca_dec(self, c: bytearray, sk: bytearray, pos: int, row: int, scalar: int, rot: int):
         ### Decode
         pk = sk[384*k:768*k+32]
         A_ = self.genA(pk[-32:])
         A_star = [Rq.intt(A_[row][i]) * scalar for i in range(k)]
-        A_star[0].coeff = np.roll(np.array(A_star[0].coeff), rot)
-        A_star[0].coeff[0] *= -1
-        A_star[1].coeff = np.roll(np.array(A_star[1].coeff), rot)
-        A_star[1].coeff[0] *= -1
+        xtimes(A_star[0], rot)
+        xtimes(A_star[1], rot)
 
         t_ = [Rq.decode(pk[12*32*i:]) for i in range(k)]
         t_star = Rq.intt(t_[row]) * scalar
-        t_star.coeff = np.roll(np.array(t_star.coeff), rot)
-        #t_star.coeff[0] *= -1
+        xtimes(t_star, rot)
 
+        ### pk mask
         u = np.array(Rq.polyvecDecodeDecomp(c))
         v = Rq.polyDecodeDecomp(c[32*du*k:])
-
-        u += A_star
-        v += t_star
+        # A_star = Rq.polyvecCompEncode(A_star) 
+        # t_star = t_star.polyCompEncode() 
+        # c = A_star + t_star
+        # A_star = Rq.polyvecDecodeDecomp(c)
+        # A_star[0] *= scalar
+        # A_star[1] *= scalar
+        # t_star = Rq.polyDecodeDecomp(c[32*du*k:]) * scalar
+        u = A_star
+        v = t_star
 
         ### Encode
         c1 = Rq.polyvecCompEncode(u)    ### 640 bytes
         c2 = v.polyCompEncode()         ### 128 bytes
 
+        check = Rq.polyvecDecodeDecomp(c1+c2)
+        print(check[0])
+        pk_mask_check(check[pos], A_, pos, row)
+
         return self.cca_dec_out_mp(c1+c2, sk)
 
+def comp(val:int):
+    ### 10 bit comp
+    if val < 0:
+        val += q
+    val <<= 10
+    val += 1665
+    val *= 1290167
+    val >>= 32
+    return val & 0x3ff
 
-for seed in range(100):
-    random.seed(seed)
+def decomp(val:int):
+    ### 10 bit decomp
+    if val < 0:
+        val += q
+    val &= 0x3ff
+    val *= q
+    val += 512
+    val >>= 10
+    return val
+
+def pk_mask_check(ct_poly: Rq, A_, pos: int, row: int):
+    pk_poly = Rq.intt(A_[row][pos]) * 1 ### Make values positive
+
+    a0_inv = pow(pk_poly.coeff[0], q-2, q)
+    for rot in range(512):
+        xtimes(ct_poly, 423)
+        ここの回転で1664になるのがバグ？
+        print(pk_poly*89)
+
+        print(ct_poly)
+        input()
+
+        center = ct_poly.coeff[0]
+        list_candidate = [center]
+        offsets = [-2, 2, -1, 1]
+        for offset in offsets:
+            candidate = center + offset
+            print(candidate)
+            print(decomp(comp(candidate)))
+            if decomp(comp(candidate)) == center:
+                list_candidate.append(candidate)
+        print(list_candidate)
+
+        for candidate in list_candidate:
+            cnt_invalid = 0
+            c = a0_inv * candidate % q
+            if c < 416: ### Negative values must be considered
+                for i in range(256):
+                    v = comp(c * pk_poly.coeff[i] % q)
+                    if v == comp(ct_poly.coeff[i]): ### We can use compressed ciphertext
+                        cnt_invalid += 1
+                if cnt_invalid > 10:
+                    print(f'{cnt_invalid=}, {rot=}, invalid ', end='')
+                    break
+        else:
+            continue
+        break
+
+
+for seed in range(1, 1000):
+    random.seed(0)
     m = random.randint(0, 2**256-1)
     d = random.randint(0, 2**256-1)
     z = random.randint(0, 2**256-1)
-    row = 1
+    row = 0
+    pos = 0
 
-    tv_d = d.to_bytes(32)
-    tv_z = z.to_bytes(32)
-    tv_m = m.to_bytes(32)
+    tv_d = d.to_bytes(32, 'big')
+    tv_z = z.to_bytes(32, 'big')
+    tv_m = m.to_bytes(32, 'big')
 
     inst = test_ML_KEM()
     pk, sk = inst.cca_keygen(tv_z, tv_d)
@@ -65,9 +138,9 @@ for seed in range(100):
     c, K = inst.cca_enc(pk, tv_m)
     # print(f'  Bob (enc) side shared secret K: {K}')
 
-    K, mp = inst.pk_masked_cca_dec(c, sk, row, 1, 0, 1)
+    K, mp = inst.pk_masked_cca_dec(c, sk, pos, row, 89, 89)
     # print(f'Alice (dec) side shared secret K: {K}')
 
     # print(m)
     # print(int.from_bytes(mp, 'big'))
-    print(seed, int.bit_count(m ^ int.from_bytes(mp, 'big')))
+    print(seed, int.bit_count(m ^ int.from_bytes(mp, 'big')), int.bit_count(int.from_bytes(mp, 'big')))
