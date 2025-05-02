@@ -1,12 +1,6 @@
 from my_ml_kem import *
 import random, copy
 
-def xtimes(poly: Rq, p: int):
-    for i in range(p):
-        coeff = poly.coeff.pop(0)
-        coeff = coeff * -1
-        poly.coeff.append(coeff if coeff > 0 else coeff + q)
-
 class test_ML_KEM(my_ML_KEM_512):
     def cca_dec_out_mp(self, c: bytearray, sk: bytearray):
         dk = sk[:384*k]
@@ -56,12 +50,11 @@ class test_ML_KEM(my_ML_KEM_512):
         c2 = v.polyCompEncode()         ### 128 bytes
 
         check = Rq.polyvecDecodeDecomp(c1+c2)
-        print(check[0])
         pk_mask_check(check[pos], A_, pos, row)
 
         return self.cca_dec_out_mp(c1+c2, sk)
 
-def comp(val:int):
+def comp(val: int):
     ### 10 bit comp
     if val < 0:
         val += q
@@ -71,7 +64,7 @@ def comp(val:int):
     val >>= 32
     return val & 0x3ff
 
-def decomp(val:int):
+def decomp(val: int):
     ### 10 bit decomp
     if val < 0:
         val += q
@@ -81,28 +74,35 @@ def decomp(val:int):
     val >>= 10
     return val
 
+def approx(val: int):
+    return decomp(comp(val))
+
+def xtimes(poly: Rq, p: int):
+    for i in range(p):
+        coeff = poly.coeff.pop(0)
+        coeff = coeff * -1
+        poly.coeff.append(coeff if coeff > 0 else coeff + q)
+
+def xtimes_approx(poly: Rq, p: int):
+    for i in range(p):
+        coeff = poly.coeff.pop(0)
+        coeff = approx(coeff * -1)
+        poly.coeff.append(coeff if coeff > 0 else coeff + q)
+
 def pk_mask_check(ct_poly: Rq, A_, pos: int, row: int):
     pk_poly = Rq.intt(A_[row][pos]) * 1 ### Make values positive
 
     a0_inv = pow(pk_poly.coeff[0], q-2, q)
     for rot in range(512):
-        xtimes(ct_poly, 423)
-        ここの回転で1664になるのがバグ？
-        print(pk_poly*89)
+        xtimes_approx(ct_poly, 1)
 
-        print(ct_poly)
-        input()
-
-        center = ct_poly.coeff[0]
+        center = ct_poly.coeff[0] % q
         list_candidate = [center]
         offsets = [-2, 2, -1, 1]
         for offset in offsets:
-            candidate = center + offset
-            print(candidate)
-            print(decomp(comp(candidate)))
-            if decomp(comp(candidate)) == center:
+            candidate = (center + offset) % q
+            if approx(candidate) == center:
                 list_candidate.append(candidate)
-        print(list_candidate)
 
         for candidate in list_candidate:
             cnt_invalid = 0
@@ -119,14 +119,24 @@ def pk_mask_check(ct_poly: Rq, A_, pos: int, row: int):
             continue
         break
 
+def approx_check():
+    for i in range(3329):
+        a = approx(q - i)
+        b = q - approx(i)
+        print(a-b)
 
-for seed in range(1, 1000):
-    random.seed(0)
+def prob():
+    math.log2(Decimal(1)-(Decimal(1)-(Decimal(1)/(Decimal(q)**Decimal(13))))**Decimal(2*q*n*k))
+
+for seed in range(10000):
+    #random.seed(0)
+    rot = random.randint(0, 511)
+    scalar = random.randint(1, 416)
     m = random.randint(0, 2**256-1)
     d = random.randint(0, 2**256-1)
     z = random.randint(0, 2**256-1)
-    row = 0
-    pos = 0
+    row = 1
+    pos = 1
 
     tv_d = d.to_bytes(32, 'big')
     tv_z = z.to_bytes(32, 'big')
@@ -138,7 +148,7 @@ for seed in range(1, 1000):
     c, K = inst.cca_enc(pk, tv_m)
     # print(f'  Bob (enc) side shared secret K: {K}')
 
-    K, mp = inst.pk_masked_cca_dec(c, sk, pos, row, 89, 89)
+    K, mp = inst.pk_masked_cca_dec(c, sk, pos, row, scalar, rot)
     # print(f'Alice (dec) side shared secret K: {K}')
 
     # print(m)
