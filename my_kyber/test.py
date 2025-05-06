@@ -90,6 +90,7 @@ def xtimes_approx(poly: Rq, p: int):
         poly.coeff.append(coeff if coeff > 0 else coeff + q)
 
 def pk_mask_check(ct_poly: Rq, A_, pos: int, row: int):
+    flag = 0
     pk_poly = Rq.intt(A_[row][pos]) * 1 ### Make values positive
 
     a0_inv = pow(pk_poly.coeff[0], q-2, q)
@@ -114,10 +115,13 @@ def pk_mask_check(ct_poly: Rq, A_, pos: int, row: int):
                         cnt_invalid += 1
                 if cnt_invalid > 10:
                     print(f'{cnt_invalid=}, {rot=}, invalid ', end='')
+                    flag = 1
                     break
         else:
             continue
         break
+    if flag == 0:
+        print("undetected")
 
 def approx_check():
     for i in range(3329):
@@ -131,12 +135,14 @@ def prob():
 for seed in range(10000):
     #random.seed(0)
     rot = random.randint(0, 511)
-    scalar = random.randint(1, 416)
+    scalar = random.randint(1, 415)
     m = random.randint(0, 2**256-1)
+    m = 0xe203e2a059622cd419e8827b3b6aa0e06dd47fef2aaffcf80a9dc5f57fd25958
     d = random.randint(0, 2**256-1)
+    d = 0x66f6107391c29bb961e1dc5e751f015cbccd2c9ac9b2c3f8aa95bd28fcbda658
     z = random.randint(0, 2**256-1)
-    row = 1
-    pos = 1
+    row = 0
+    pos = 0
 
     tv_d = d.to_bytes(32, 'big')
     tv_z = z.to_bytes(32, 'big')
@@ -148,9 +154,9 @@ for seed in range(10000):
     c, K = inst.cca_enc(pk, tv_m)
     # print(f'  Bob (enc) side shared secret K: {K}')
 
-    K, mp = inst.pk_masked_cca_dec(c, sk, pos, row, scalar, rot)
+    K, mp = inst.pk_masked_cca_dec(c, sk, pos, row, 244, 350)
     # print(f'Alice (dec) side shared secret K: {K}')
 
     # print(m)
     # print(int.from_bytes(mp, 'big'))
-    print(seed, int.bit_count(m ^ int.from_bytes(mp, 'big')), int.bit_count(int.from_bytes(mp, 'big')))
+    print(seed, hex(m), hex(d), rot, scalar, int.bit_count(m ^ int.from_bytes(mp, 'big')), int.bit_count(int.from_bytes(mp, 'big')))
