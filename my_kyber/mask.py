@@ -97,15 +97,19 @@ r = 2596
 print(f'{r=}, {832-tau <= r and r < 832+tau}, {2496-tau < r and r < 2496+tau}')
 sanityCheck(r, 100)
 
-ShowHWProb()
+# ShowHWProb()
 
-p = 0.954
+p = 0.5
 N = 5500
-for a in range(10):
+for a in range(1,20):
     correctInEq_rate = 1 - p + (p/(2**a))
     incorrectInEq_rate = p/(2**a)
     availableInEq_rate = 1 - p + (p/(2**(a-1)))
     correct_rate = correctInEq_rate / availableInEq_rate
+    sum = 0
+    for i in range(2,a+1):
+        sum += i/2**(i-1)
+    queryFor1ineq = a*(1-p) + p*sum + p*a/2**(a-1)
 
-    print(f'{a=}, {availableInEq_rate=}, {correctInEq_rate=}, {incorrectInEq_rate=}, {correct_rate=}')
-    print(f'{N/availableInEq_rate=}')
+    print(f'{queryFor1ineq=}')
+    print(f'{a=}, {correct_rate=}')
