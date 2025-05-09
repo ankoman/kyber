@@ -138,6 +138,8 @@ def approx_check():
         print(a-b)
 
 def prob():
+    from decimal import *
+    getcontext().prec = 150
     math.log2(Decimal(1)-(Decimal(1)-(Decimal(1)/(Decimal(q)**Decimal(13))))**Decimal(2*q*n*k))
 
 for seed in range(10000):
