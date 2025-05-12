@@ -20,31 +20,45 @@ class test_ML_KEM(my_ML_KEM_512):
 
         return Kp, mp
     
+    def get_pk_mask(self, sk: bytearray, pos: int, row: int, scalar: int, rot: int):
+        ### Decode
+        pk = sk[384*k:768*k+32]
+        A_ = self.genA(pk[-32:])
+        delta_u = [Rq.intt(A_[row][i]) * scalar for i in range(k)]
+        xtimes(delta_u[0], rot)
+        xtimes(delta_u[1], rot)
+
+        t_ = [Rq.decode(pk[12*32*i:]) for i in range(k)]
+        delta_v = Rq.intt(t_[row]) * scalar
+        xtimes(delta_v, rot)
+
+        return delta_u, delta_v ### Not compressed
+    
     def pk_masked_cca_dec(self, c: bytearray, sk: bytearray, pos: int, row: int, scalar: int, rot: int):
         ### Decode
         pk = sk[384*k:768*k+32]
         A_ = self.genA(pk[-32:])
         A_star = [Rq.intt(A_[row][i]) * scalar for i in range(k)]
-        # xtimes(A_star[0], rot)
-        # xtimes(A_star[1], rot)
+        xtimes(A_star[0], rot)
+        xtimes(A_star[1], rot)
 
         t_ = [Rq.decode(pk[12*32*i:]) for i in range(k)]
         t_star = Rq.intt(t_[row]) * scalar
-        # xtimes(t_star, rot)
+        xtimes(t_star, rot)
 
         ### pk mask
         u = np.array(Rq.polyvecDecodeDecomp(c))
         v = Rq.polyDecodeDecomp(c[32*du*k:])
-        A_star = Rq.polyvecCompEncode(A_star) 
-        t_star = t_star.polyCompEncode() 
-        c = A_star + t_star
-        A_star = Rq.polyvecDecodeDecomp(c)
-        A_star[0] *= scalar
-        A_star[1] *= scalar
-        xtimes(A_star[0], rot)
-        xtimes(A_star[1], rot)
-        t_star = Rq.polyDecodeDecomp(c[32*du*k:]) * scalar
-        xtimes(t_star, rot)
+        # A_star = Rq.polyvecCompEncode(A_star) 
+        # t_star = t_star.polyCompEncode() 
+        # c = A_star + t_star
+        # A_star = Rq.polyvecDecodeDecomp(c)
+        # A_star[0] *= scalar
+        # A_star[1] *= scalar
+        # xtimes(A_star[0], rot)
+        # xtimes(A_star[1], rot)
+        # t_star = Rq.polyDecodeDecomp(c[32*du*k:]) * scalar
+        # xtimes(t_star, rot)
         u = A_star
         v = t_star
 
@@ -181,9 +195,11 @@ def diffCount(list_a, list_b):
     return cnt
 
 def pco():
-    random.seed(0)
+    random.seed(3)
     row = 0
     pos = 0
+    scalar = 1
+    rot = 0
     U = 276
     V = 208
     # rot = random.randint(0, 511)
@@ -199,21 +215,23 @@ def pco():
     pk, sk = inst.cca_keygen(tv_z, tv_d)
     dk = sk[:384*k]
     s = [Rq.intt(Rq.decode(dk)), Rq.intt(Rq.decode(dk[384:]))]
+    d_u, d_v = inst.get_pk_mask(sk, pos, row, scalar, rot)
 
     for i in range(2):
         attacked_key = []
-        u = [Rq(), Rq()]
-        v = Rq()
-        u[i].coeff[0] += U
+        u = d_u
+        v = d_v
+        tmp_u = u[i].coeff[0]
+        u[i].coeff[0] = (u[i].coeff[0] + U) % q
         c1 = Rq.polyvecCompEncode(u)
         key = -100
         for j in range(256):
-            tmp = v.coeff[j]
-            v.coeff[j] = tmp + 3*V
+            tmp_v = v.coeff[j]
+            v.coeff[j] = (tmp_v + 3*V) % q
             if zero != inst.dec(dk, c1 + v.polyCompEncode()):
-                v.coeff[j] = tmp + 2*V
+                v.coeff[j] = (tmp_v + 2*V) % q
                 if zero != inst.dec(dk, c1 + v.polyCompEncode()):
-                    v.coeff[j] = tmp +  V
+                    v.coeff[j] = (tmp_v +  V) % q
                     if zero != inst.dec(dk, c1 + v.polyCompEncode()):
                         key = -3
                     else: 
@@ -221,27 +239,28 @@ def pco():
                 else:
                     key = -1
             else:
-                v.coeff[j] = tmp +  -2*V
+                v.coeff[j] = (tmp_v + -2*V) % q
                 if zero != inst.dec(dk, c1 + v.polyCompEncode()):
-                    v.coeff[j] = tmp +  -1*V
+                    v.coeff[j] = (tmp_v + -1*V) % q
                     if zero != inst.dec(dk, c1 + v.polyCompEncode()):
                         key = 3
                     else:
                         key = 2
                 else:
-                    v.coeff[j] = tmp +  -3*V
+                    v.coeff[j] = (tmp_v + -3*V) % q
                     if zero != inst.dec(dk, c1 + v.polyCompEncode()):
                         key = 1
                     else:
                         key = 0
             attacked_key.append(key)
-            v.coeff[j] = tmp
+            v.coeff[j] = tmp_v
         
         if s[i].coeff == attacked_key:
             print(f"Attack success s[{i}]")
         else:
             print(f"Failed s[{i}]: {diffCount(s[i].coeff, attacked_key)}")
         # print(attacked_key)
+        u[i].coeff[0] = tmp_u
 
 
 if __name__ == '__main__':
