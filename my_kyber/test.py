@@ -138,35 +138,111 @@ def approx_check():
         print(a-b)
 
 def prob():
-    from decimal import *
+    # from decimal import *
     getcontext().prec = 150
     math.log2(Decimal(1)-(Decimal(1)-(Decimal(1)/(Decimal(q)**Decimal(13))))**Decimal(2*q*n*k))
 
-for seed in range(10000):
-    #random.seed(0)
-    rot = random.randint(0, 511)
-    scalar = random.randint(1, 415)
-    m = 0#random.randint(0, 2**256-1)
-    d = random.randint(0, 2**256-1)
-    z = random.randint(0, 2**256-1)
+
+def main():
+    for seed in range(10000):
+        #random.seed(0)
+        rot = random.randint(0, 511)
+        scalar = random.randint(1, 415)
+        m = 0#random.randint(0, 2**256-1)
+        d = random.randint(0, 2**256-1)
+        z = random.randint(0, 2**256-1)
+        row = 0
+        pos = 0
+
+        tv_d = d.to_bytes(32, 'big')
+        tv_z = z.to_bytes(32, 'big')
+        tv_m = m.to_bytes(32, 'big')
+
+        inst = test_ML_KEM()
+        pk, sk = inst.cca_keygen(tv_z, tv_d)
+
+        c, K = inst.cca_enc(pk, tv_m)
+        # print(f'  Bob (enc) side shared secret K: {K}')
+
+        K, mp = inst.pk_masked_cca_dec(c, sk, pos, row, 1, seed)
+        # print(f'Alice (dec) side shared secret K: {K}')
+
+        # print(m)
+        # print(int.from_bytes(mp, 'big'))
+        wrong_bits = int.bit_count(m ^ int.from_bytes(mp, 'big'))
+        hw_mp = int.bit_count(int.from_bytes(mp, 'big'))
+        print(seed, hex(m), hex(d), rot, scalar, wrong_bits, hw_mp)
+
+def diffCount(list_a, list_b):
+    cnt = 0
+    for i in range(256):
+        if list_a[i] != list_b[i]:
+            cnt += 1
+    return cnt
+
+def pco():
+    random.seed(0)
     row = 0
     pos = 0
+    U = 276
+    V = 208
+    # rot = random.randint(0, 511)
+    # scalar = random.randint(1, 415)
+    d = random.randint(0, 2**256-1)
+    z = random.randint(0, 2**256-1)
 
+    zero = (0).to_bytes(32, 'big')
     tv_d = d.to_bytes(32, 'big')
     tv_z = z.to_bytes(32, 'big')
-    tv_m = m.to_bytes(32, 'big')
 
     inst = test_ML_KEM()
     pk, sk = inst.cca_keygen(tv_z, tv_d)
+    dk = sk[:384*k]
+    s = [Rq.intt(Rq.decode(dk)), Rq.intt(Rq.decode(dk[384:]))]
 
-    c, K = inst.cca_enc(pk, tv_m)
-    # print(f'  Bob (enc) side shared secret K: {K}')
+    for i in range(2):
+        attacked_key = []
+        u = [Rq(), Rq()]
+        v = Rq()
+        u[i].coeff[0] += U
+        c1 = Rq.polyvecCompEncode(u)
+        key = -100
+        for j in range(256):
+            tmp = v.coeff[j]
+            v.coeff[j] = tmp + 3*V
+            if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+                v.coeff[j] = tmp + 2*V
+                if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+                    v.coeff[j] = tmp +  V
+                    if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+                        key = -3
+                    else: 
+                        key = -2
+                else:
+                    key = -1
+            else:
+                v.coeff[j] = tmp +  -2*V
+                if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+                    v.coeff[j] = tmp +  -1*V
+                    if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+                        key = 3
+                    else:
+                        key = 2
+                else:
+                    v.coeff[j] = tmp +  -3*V
+                    if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+                        key = 1
+                    else:
+                        key = 0
+            attacked_key.append(key)
+            v.coeff[j] = tmp
+        
+        if s[i].coeff == attacked_key:
+            print(f"Attack success s[{i}]")
+        else:
+            print(f"Failed s[{i}]: {diffCount(s[i].coeff, attacked_key)}")
+        # print(attacked_key)
 
-    K, mp = inst.pk_masked_cca_dec(c, sk, pos, row, 1, seed)
-    # print(f'Alice (dec) side shared secret K: {K}')
 
-    # print(m)
-    # print(int.from_bytes(mp, 'big'))
-    wrong_bits = int.bit_count(m ^ int.from_bytes(mp, 'big'))
-    hw_mp = int.bit_count(int.from_bytes(mp, 'big'))
-    print(seed, hex(m), hex(d), rot, scalar, wrong_bits, hw_mp)
+if __name__ == '__main__':
+    pco()
