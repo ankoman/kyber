@@ -194,20 +194,47 @@ def diffCount(list_a, list_b):
             cnt += 1
     return cnt
 
+def pco_512_tanaka(inst, dk, c1, v, j, tmp_v):
+    V = 208
+    zero = (0).to_bytes(32, 'big')
+    v.coeff[j] = (tmp_v + 3*V) % q
+    if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+        v.coeff[j] = (tmp_v + 2*V) % q
+        if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+            v.coeff[j] = (tmp_v +  V) % q
+            if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+                return -3
+            else: 
+                return -2
+        else:
+            return -1
+    else:
+        v.coeff[j] = (tmp_v + -2*V) % q
+        if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+            v.coeff[j] = (tmp_v + -1*V) % q
+            if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+                return 3
+            else:
+                return 2
+        else:
+            v.coeff[j] = (tmp_v + -3*V) % q
+            if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+                return 1
+            else:
+                return 0
+
 def pco():
-    random.seed(3)
+    random.seed(1)
     row = 0
     pos = 0
     scalar = 1
     rot = 0
     U = 276
-    V = 208
     # rot = random.randint(0, 511)
     # scalar = random.randint(1, 415)
     d = random.randint(0, 2**256-1)
     z = random.randint(0, 2**256-1)
 
-    zero = (0).to_bytes(32, 'big')
     tv_d = d.to_bytes(32, 'big')
     tv_z = z.to_bytes(32, 'big')
 
@@ -219,39 +246,15 @@ def pco():
 
     for i in range(2):
         attacked_key = []
-        u = d_u
-        v = d_v
+        u = [Rq(), Rq()]# d_u
+        v = Rq() #d_v
         tmp_u = u[i].coeff[0]
         u[i].coeff[0] = (u[i].coeff[0] + U) % q
         c1 = Rq.polyvecCompEncode(u)
         key = -100
         for j in range(256):
             tmp_v = v.coeff[j]
-            v.coeff[j] = (tmp_v + 3*V) % q
-            if zero != inst.dec(dk, c1 + v.polyCompEncode()):
-                v.coeff[j] = (tmp_v + 2*V) % q
-                if zero != inst.dec(dk, c1 + v.polyCompEncode()):
-                    v.coeff[j] = (tmp_v +  V) % q
-                    if zero != inst.dec(dk, c1 + v.polyCompEncode()):
-                        key = -3
-                    else: 
-                        key = -2
-                else:
-                    key = -1
-            else:
-                v.coeff[j] = (tmp_v + -2*V) % q
-                if zero != inst.dec(dk, c1 + v.polyCompEncode()):
-                    v.coeff[j] = (tmp_v + -1*V) % q
-                    if zero != inst.dec(dk, c1 + v.polyCompEncode()):
-                        key = 3
-                    else:
-                        key = 2
-                else:
-                    v.coeff[j] = (tmp_v + -3*V) % q
-                    if zero != inst.dec(dk, c1 + v.polyCompEncode()):
-                        key = 1
-                    else:
-                        key = 0
+            key = pco_512_tanaka(inst, dk, c1, v, j, tmp_v)
             attacked_key.append(key)
             v.coeff[j] = tmp_v
         
@@ -259,7 +262,7 @@ def pco():
             print(f"Attack success s[{i}]")
         else:
             print(f"Failed s[{i}]: {diffCount(s[i].coeff, attacked_key)}")
-        # print(attacked_key)
+        print(attacked_key)
         u[i].coeff[0] = tmp_u
 
 
