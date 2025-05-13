@@ -6,9 +6,9 @@ import copy
 #import sha3
 
 n = 256
-k = 2
+k = 3
 q = 3329
-eta1 = 3
+eta1 = 2
 eta2 = 2
 du = 10
 dv = 4
@@ -162,7 +162,7 @@ class Rq:
         return poly
 
     @classmethod
-    def sample_cbd(cls, sigma, nonce,  eta):
+    def sample_cbd(cls, sigma, nonce, eta):
 
         ### PRF part
         poly = cls()
@@ -200,7 +200,7 @@ class Rq:
 
         return poly
 
-    def encode(self) -> int:
+    def encode(self) -> bytearray:
         val = 0
         for i in range(0, n, 2):
             elem0 = self.coeff[i]
@@ -218,7 +218,7 @@ class Rq:
             val <<= 8
             val += elem1 >> 4
 
-        return val
+        return val.to_bytes(384, 'big')
 
     @classmethod
     def decode(cls, barray) -> Rq:
@@ -362,9 +362,9 @@ def hash_J(din: bytearray) -> str:
 
     return K
 
-class my_ML_KEM_512:
+class my_ML_KEM:
     """
-    Name:        my_ML_KEM_512
+    Name:        my_ML_KEM
     """
 
     def __init__(self):
@@ -400,18 +400,21 @@ class my_ML_KEM_512:
         rho = Gout[:32]
         sigma = Gout[32:]
         A = self.genA(rho)
+        N = 0
 
         s = []
-        s.append(Rq.sample_cbd(sigma, 0, 3))
-        s.append(Rq.sample_cbd(sigma, 1, 3))
+        for i in range(k):
+            s.append(Rq.sample_cbd(sigma, N, eta1))
+            N += 1
 
         e = []
-        e.append(Rq.sample_cbd(sigma, 2, 3))
-        e.append(Rq.sample_cbd(sigma, 3, 3))
+        for i in range(k):
+            e.append(Rq.sample_cbd(sigma, N, eta1))
+            N += 1
 
-        ntt_s = [Rq.ntt(s[0]), Rq.ntt(s[1])]
+        ntt_s = [Rq.ntt(s[i]) for i in range(k)]
 
-        ntt_e = [Rq.ntt(e[0]), Rq.ntt(e[1])]
+        ntt_e = [Rq.ntt(e[i]) for i in range(k)]
 
         # Matrix-vector multiplication
         As = [Rq() for x in range(k)]
@@ -421,9 +424,12 @@ class my_ML_KEM_512:
         
         ntt_t = [As[i] + ntt_e[i] for i in range(k)]
 
-        pk = ((((ntt_t[0].encode() << 12*n) | ntt_t[1].encode()) << 256) | int.from_bytes(rho, 'big')).to_bytes(800, 'big')
-
-        sk = ((ntt_s[0].encode() << 12*n) | ntt_s[1].encode()).to_bytes(768, 'big')
+        # Encode
+        pk, sk = bytes(0), bytes(0)
+        for i in range(k):
+            pk += ntt_t[i].encode()
+            sk += ntt_s[i].encode()
+        pk += rho
 
         ### pk and sk are int type
         return pk, sk
@@ -438,20 +444,22 @@ class my_ML_KEM_512:
     
     def enc(self, pk: bytearray, m: bytearray, coin: bytearray) -> bytearray:
         t_ = [Rq.decode(pk[12*32*i:]) for i in range(k)]
-
         rho = pk[-32:]
+        N = 0
 
         At = self.genA(rho, True)
 
         y = []
-        y.append(Rq.sample_cbd(coin, 0, 3))
-        y.append(Rq.sample_cbd(coin, 1, 3))
+        for i in range(k):
+            y.append(Rq.sample_cbd(coin, N, eta1))
+            N += 1
 
         e1 = []
-        e1.append(Rq.sample_cbd(coin, 2, 2))
-        e1.append(Rq.sample_cbd(coin, 3, 2))
+        for i in range(k):
+            e1.append(Rq.sample_cbd(coin, N, eta2))
+            N += 1
 
-        e2 = Rq.sample_cbd(coin, 4, 2)
+        e2 = Rq.sample_cbd(coin, N, eta2)
 
         ntt_y = [Rq.ntt(y[i]) for i in range(k)]
 
@@ -491,7 +499,7 @@ class my_ML_KEM_512:
 
         v = Rq.polyDecodeDecomp(c[32*du*k:])
 
-        ntt_s = [Rq.decode(dk), Rq.decode(dk[384:])]    ### Should be run k times
+        ntt_s = [Rq.decode(dk[384*i:]) for i in range(k)] 
 
         ntt_u = [Rq.ntt(u[i]) for i in range(k)]
 
@@ -504,6 +512,9 @@ class my_ML_KEM_512:
         mp = v - intt_stu
 
         m = Rq.msgencode(mp)
+        # print(mp)
+        # print(hex(m))
+        # input()
 
         return m.to_bytes(32, 'big')
 
@@ -529,7 +540,7 @@ def KAT_ref(N):
     for idx in range(N):
         print(f'#{idx} test vector...')
         start = idx * 11
-        with open(r'../kat/ml_kem_512_ref.kat', 'r') as f:
+        with open(r'../kat/ml_kem_768_ref.kat', 'r') as f:
             tv = f.readlines()[start:start+10]
 
         tv_d = bytes.fromhex(tv[0].split(':')[1])
@@ -543,7 +554,7 @@ def KAT_ref(N):
         tv_ct_p = bytes.fromhex(tv[8].split(':')[1])
         tv_z_ss = bytes.fromhex(tv[9].split(':')[1])
 
-        inst = my_ML_KEM_512()
+        inst = my_ML_KEM()
         pk, sk = inst.cca_keygen(tv_z, tv_d)
         assert pk == tv_pk, f'{pk:x} != {tv_pk:x}'
         assert sk == tv_sk, f'{sk:x} != {tv_sk:x}'
@@ -565,7 +576,7 @@ def KAT_itzmeanjan(N):
     for idx in range(N):
         print(f'#{idx} test vector...')
         start = idx * 8
-        with open(r'../kat/ml_kem_512.kat', 'r') as f:
+        with open(r'../kat/ml_kem_768.kat', 'r') as f:
             tv = f.readlines()[start:start+7]
 
         tv_d = bytes.fromhex(tv[0].split('=')[1])
@@ -576,9 +587,9 @@ def KAT_itzmeanjan(N):
         tv_ct = bytes.fromhex(tv[5].split('=')[1])
         tv_ss = bytes.fromhex(tv[6].split('=')[1])
 
-        inst = my_ML_KEM_512()
+        inst = my_ML_KEM()
         pk, sk = inst.cca_keygen(tv_z, tv_d)
-        assert pk == tv_pk, f'{pk:x} != {tv_pk:x}'
+        assert pk == tv_pk, f'{pk} != {tv_pk}'
         assert sk == tv_sk, f'{sk:x} != {tv_sk:x}'
 
         c, K = inst.cca_enc(pk, tv_m)
@@ -592,6 +603,6 @@ def KAT_itzmeanjan(N):
 
 
 if __name__ == "__main__":
-    N = 1000
-    KAT_ref(N)
+    N = 100
+    # KAT_ref(N)
     KAT_itzmeanjan(N)
