@@ -5,10 +5,17 @@ import numpy as np
 import copy
 #import sha3
 
-n = 256
+### 512
+# k = 2
+# eta1 = 3
+
+### 768
 k = 3
-q = 3329
 eta1 = 2
+
+### General
+n = 256
+q = 3329
 eta2 = 2
 du = 10
 dv = 4

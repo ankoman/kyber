@@ -1,7 +1,7 @@
 from my_ml_kem import *
 import random, copy
 
-class test_ML_KEM(my_ML_KEM_512):
+class test_ML_KEM(my_ML_KEM):
     def cca_dec_out_mp(self, c: bytearray, sk: bytearray):
         dk = sk[:384*k]
         pk = sk[384*k:768*k+32]
@@ -25,8 +25,8 @@ class test_ML_KEM(my_ML_KEM_512):
         pk = sk[384*k:768*k+32]
         A_ = self.genA(pk[-32:])
         delta_u = [Rq.intt(A_[row][i]) * scalar for i in range(k)]
-        xtimes(delta_u[0], rot)
-        xtimes(delta_u[1], rot)
+        for i in range(k):
+            xtimes(delta_u[i], rot)
 
         t_ = [Rq.decode(pk[12*32*i:]) for i in range(k)]
         delta_v = Rq.intt(t_[row]) * scalar
@@ -194,9 +194,19 @@ def diffCount(list_a, list_b):
             cnt += 1
     return cnt
 
-def pco_512_tanaka(inst, dk, c1, v, j, tmp_v):
+def pco_512_tanaka(inst, dk, d_u, d_v, i, j):
     V = 208
+    U = 276
     zero = (0).to_bytes(32, 'big')
+
+    # Make query U
+    u = copy.deepcopy(d_u)
+    v = copy.deepcopy(d_v)
+    tmp_v = v.coeff[j]
+    u[i].coeff[0] = (u[i].coeff[0] + U) % q
+    c1 = Rq.polyvecCompEncode(u)
+
+    # Make query V
     v.coeff[j] = (tmp_v + 3*V) % q
     if zero != inst.dec(dk, c1 + v.polyCompEncode()):
         v.coeff[j] = (tmp_v + 2*V) % q
@@ -223,13 +233,75 @@ def pco_512_tanaka(inst, dk, c1, v, j, tmp_v):
             else:
                 return 0
 
+def pco_768_tanaka(inst, dk, d_u, d_v, i, j):
+    V = 208
+    U = 276
+    zero = (0).to_bytes(32, 'big')
+
+    # Make query U
+    u = copy.deepcopy(d_u)
+    v = copy.deepcopy(d_v)
+    tmp_v = v.coeff[j]
+    u[i].coeff[0] = (u[i].coeff[0] + U) % q
+    c1 = Rq.polyvecCompEncode(u)
+
+    # Make query V
+    v.coeff[j] = (tmp_v + 3*V) % q
+    if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+        v.coeff[j] = (tmp_v + 2*V) % q
+        if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+            return -2
+        else:
+            return -1
+    else:
+        v.coeff[j] = (tmp_v + -3*V) % q
+        if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+            v.coeff[j] = (tmp_v + -2*V) % q
+            if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+                return 2
+            else:
+                return 1
+        else:
+            return 0
+
+def pco_768_rajendran(inst, dk, d_u, d_v, i, j):
+    V = 208
+    U = 208
+    zero = (0).to_bytes(32, 'big')
+
+    # Make query U
+    u = copy.deepcopy(d_u)
+    v = copy.deepcopy(d_v)
+    tmp_v = v.coeff[0]
+    u[i].coeff[j] = (u[i].coeff[j] + U) % q
+    c1 = Rq.polyvecCompEncode(u)
+
+    # Make query V
+    v.coeff[0] = (tmp_v + 4*V) % q
+    if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+        v.coeff[0] = (tmp_v + 3*V) % q
+        if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+            return -2
+        else:
+            return -1
+    else:
+        v.coeff[0] = (tmp_v + 6*V) % q
+        if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+            v.coeff[0] = (tmp_v + 5*V) % q
+            if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+                return 0
+            else:
+                return 1
+        else:
+            return 2
+
 def pco():
-    random.seed(1)
+    # random.seed(0)
+    PK_MASK = True
     row = 0
     pos = 0
     scalar = 1
     rot = 0
-    U = 276
     # rot = random.randint(0, 511)
     # scalar = random.randint(1, 415)
     d = random.randint(0, 2**256-1)
@@ -238,33 +310,32 @@ def pco():
     tv_d = d.to_bytes(32, 'big')
     tv_z = z.to_bytes(32, 'big')
 
+    # Prepare secret key
     inst = test_ML_KEM()
     pk, sk = inst.cca_keygen(tv_z, tv_d)
     dk = sk[:384*k]
-    s = [Rq.intt(Rq.decode(dk)), Rq.intt(Rq.decode(dk[384:]))]
-    d_u, d_v = inst.get_pk_mask(sk, pos, row, scalar, rot)
+    s = [Rq.intt(Rq.decode(dk[384*i:])) for i in range(k)]
 
-    for i in range(2):
-        attacked_key = []
-        u = [Rq(), Rq()]# d_u
-        v = Rq() #d_v
-        tmp_u = u[i].coeff[0]
-        u[i].coeff[0] = (u[i].coeff[0] + U) % q
-        c1 = Rq.polyvecCompEncode(u)
-        key = -100
+    # Generate pk mask
+    d_u, d_v = [Rq() for i in range(k)], Rq()
+    if PK_MASK:
+        d_u, d_v = inst.get_pk_mask(sk, pos, row, scalar, rot)
+
+    for i in range(k):
+        attacked_key = [100] * 256
         for j in range(256):
-            tmp_v = v.coeff[j]
-            key = pco_512_tanaka(inst, dk, c1, v, j, tmp_v)
-            attacked_key.append(key)
-            v.coeff[j] = tmp_v
+            key = pco_768_tanaka(inst, dk, d_u, d_v, i, j)
+            attacked_key[j] = key              ### Tanaka's method
+            # attacked_key[(256-j) % 256] = key if j == 0 else -key  ### Rajendra's method
         
         if s[i].coeff == attacked_key:
             print(f"Attack success s[{i}]")
         else:
             print(f"Failed s[{i}]: {diffCount(s[i].coeff, attacked_key)}")
-        print(attacked_key)
-        u[i].coeff[0] = tmp_u
+        # print(attacked_key)
+        # print(s[i])
 
 
 if __name__ == '__main__':
-    pco()
+    for i in range(10):
+        pco()
