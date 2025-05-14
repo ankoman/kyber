@@ -41,6 +41,7 @@ class test_ML_KEM(my_ML_KEM):
         A_star = [Rq.intt(A_[row][i]) * scalar for i in range(k)]
         xtimes(A_star[0], rot)
         xtimes(A_star[1], rot)
+        xtimes(A_star[2], rot)
 
         t_ = [Rq.decode(pk[12*32*i:]) for i in range(k)]
         t_star = Rq.intt(t_[row]) * scalar
@@ -156,37 +157,6 @@ def prob():
     getcontext().prec = 150
     math.log2(Decimal(1)-(Decimal(1)-(Decimal(1)/(Decimal(q)**Decimal(13))))**Decimal(2*q*n*k))
 
-
-def main():
-    for seed in range(10000):
-        #random.seed(0)
-        rot = random.randint(0, 511)
-        scalar = random.randint(1, 415)
-        m = 0#random.randint(0, 2**256-1)
-        d = random.randint(0, 2**256-1)
-        z = random.randint(0, 2**256-1)
-        row = 0
-        pos = 0
-
-        tv_d = d.to_bytes(32, 'big')
-        tv_z = z.to_bytes(32, 'big')
-        tv_m = m.to_bytes(32, 'big')
-
-        inst = test_ML_KEM()
-        pk, sk = inst.cca_keygen(tv_z, tv_d)
-
-        c, K = inst.cca_enc(pk, tv_m)
-        # print(f'  Bob (enc) side shared secret K: {K}')
-
-        K, mp = inst.pk_masked_cca_dec(c, sk, pos, row, 1, seed)
-        # print(f'Alice (dec) side shared secret K: {K}')
-
-        # print(m)
-        # print(int.from_bytes(mp, 'big'))
-        wrong_bits = int.bit_count(m ^ int.from_bytes(mp, 'big'))
-        hw_mp = int.bit_count(int.from_bytes(mp, 'big'))
-        print(seed, hex(m), hex(d), rot, scalar, wrong_bits, hw_mp)
-
 def diffCount(list_a, list_b):
     cnt = 0
     for i in range(256):
@@ -296,7 +266,7 @@ def pco_768_rajendran(inst, dk, d_u, d_v, i, j):
             return 2
 
 def pco():
-    # random.seed(0)
+    random.seed(1)
     PK_MASK = True
     row = 0
     pos = 0
@@ -322,11 +292,11 @@ def pco():
         d_u, d_v = inst.get_pk_mask(sk, pos, row, scalar, rot)
 
     for i in range(k):
-        attacked_key = [100] * 256
+        attacked_key = [None] * 256
         for j in range(256):
-            key = pco_768_tanaka(inst, dk, d_u, d_v, i, j)
-            attacked_key[j] = key              ### Tanaka's method
-            # attacked_key[(256-j) % 256] = key if j == 0 else -key  ### Rajendra's method
+            key = pco_768_rajendran(inst, dk, d_u, d_v, i, j)
+            # attacked_key[j] = key              ### Tanaka's method
+            attacked_key[(256-j) % 256] = key if j == 0 else -key  ### Rajendra's method
         
         if s[i].coeff == attacked_key:
             print(f"Attack success s[{i}]")
@@ -335,7 +305,38 @@ def pco():
         # print(attacked_key)
         # print(s[i])
 
+def main():
+    for seed in range(10):
+        #random.seed(0)
+        rot = random.randint(0, 511)
+        scalar = random.randint(1, 415)
+        m = 0#random.randint(0, 2**256-1)
+        d = random.randint(0, 2**256-1)
+        z = random.randint(0, 2**256-1)
+        row = 0
+        pos = 0
+
+        tv_d = d.to_bytes(32, 'big')
+        tv_z = z.to_bytes(32, 'big')
+        tv_m = m.to_bytes(32, 'big')
+
+        inst = test_ML_KEM()
+        pk, sk = inst.cca_keygen(tv_z, tv_d)
+
+        c, K = inst.cca_enc(pk, tv_m)
+        # print(f'  Bob (enc) side shared secret K: {K}')
+
+        K, mp = inst.pk_masked_cca_dec(c, sk, pos, row, 1, rot)
+        # print(f'Alice (dec) side shared secret K: {K}')
+
+        # print(m)
+        # print(int.from_bytes(mp, 'big'))
+        wrong_bits = int.bit_count(m ^ int.from_bytes(mp, 'big'))
+        hw_mp = int.bit_count(int.from_bytes(mp, 'big'))
+        if hw_mp != 0:
+            print(seed, hex(m), hex(d), rot, scalar, wrong_bits, hw_mp)
 
 if __name__ == '__main__':
+    # main()
     for i in range(10):
         pco()
