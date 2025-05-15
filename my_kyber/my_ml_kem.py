@@ -6,12 +6,16 @@ import copy
 #import sha3
 
 ### 512
-# k = 2
-# eta1 = 3
+k = 2
+eta1 = 3
 
 ### 768
-k = 3
-eta1 = 2
+# k = 3
+# eta1 = 2
+
+### 1024
+# k = 4
+# eta1 = 2
 
 ### General
 n = 256
@@ -376,6 +380,17 @@ class my_ML_KEM:
 
     def __init__(self):
         pass
+        # if security == 768:
+        #     k = 3
+        #     eta1 = 2
+        #     eta2 = 2
+        # elif security == 512:
+        #     self.k = 2
+        #     self.eta1 = 3
+        #     self.eta2 = 2
+        # else:
+        #     print("Invalid security level")
+        #     exit(-1)
 
     def genA(self, rho, transpose = False) -> list[Rq][Rq]:
         A = []
@@ -503,11 +518,9 @@ class my_ML_KEM:
 
     def dec(self, dk: bytearray, c: bytearray) -> bytearray:
         u = Rq.polyvecDecodeDecomp(c)
-
         v = Rq.polyDecodeDecomp(c[32*du*k:])
 
         ntt_s = [Rq.decode(dk[384*i:]) for i in range(k)] 
-
         ntt_u = [Rq.ntt(u[i]) for i in range(k)]
 
         # Vector-vector multiplication
@@ -516,9 +529,8 @@ class my_ML_KEM:
                 stu = stu + (ntt_s[i] @ ntt_u[i])
         intt_stu = Rq.intt(stu)
 
-        mp = v - intt_stu
-
-        m = Rq.msgencode(mp)
+        w = v - intt_stu
+        m = Rq.msgencode(w)
         # print(mp)
         # print(hex(m))
         # input()
