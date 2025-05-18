@@ -138,6 +138,8 @@ def pk_mask_check(ct_poly: Rq, A_, pos: int, row: int):
                         cnt_invalid += 1
                 if cnt_invalid > 10:
                     print(f'{cnt_invalid=}, {rot=}, invalid ', end='')
+                    if rot > 256:
+                        print("invalid rot")
                     flag = 1
                     break
         else:
@@ -306,7 +308,7 @@ def pco():
         # print(s[i])
 
 def main():
-    for seed in range(10):
+    for seed in range(1000):
         #random.seed(0)
         rot = random.randint(0, 511)
         scalar = random.randint(1, 415)
@@ -326,17 +328,17 @@ def main():
         c, K = inst.cca_enc(pk, tv_m)
         # print(f'  Bob (enc) side shared secret K: {K}')
 
-        K, mp = inst.pk_masked_cca_dec(c, sk, pos, row, 1, rot)
+        K, mp = inst.pk_masked_cca_dec(c, sk, pos, row, scalar, rot)
         # print(f'Alice (dec) side shared secret K: {K}')
 
         # print(m)
         # print(int.from_bytes(mp, 'big'))
         wrong_bits = int.bit_count(m ^ int.from_bytes(mp, 'big'))
         hw_mp = int.bit_count(int.from_bytes(mp, 'big'))
-        if hw_mp != 0:
+        if hw_mp != 300:
             print(seed, hex(m), hex(d), rot, scalar, wrong_bits, hw_mp)
 
 if __name__ == '__main__':
-    # main()
-    for i in range(10):
-        pco()
+    main()
+    # for i in range(10):
+    #     pco()
