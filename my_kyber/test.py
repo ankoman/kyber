@@ -50,6 +50,9 @@ class test_ML_KEM(my_ML_KEM):
         ### pk mask
         u = np.array(Rq.polyvecDecodeDecomp(c))
         v = Rq.polyDecodeDecomp(c[32*du*k:])
+        # v.coeff[0] = v.coeff[0] + 832
+        # u[0].coeff[0] = u[0].coeff[0] + 100
+
         # A_star = Rq.polyvecCompEncode(A_star) 
         # t_star = t_star.polyCompEncode() 
         # c = A_star + t_star
@@ -309,7 +312,7 @@ def pco():
 
 def main():
     for seed in range(1000):
-        #random.seed(0)
+        random.seed(0)
         rot = random.randint(0, 511)
         scalar = random.randint(1, 415)
         m = 0#random.randint(0, 2**256-1)
