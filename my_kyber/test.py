@@ -117,7 +117,7 @@ def pk_mask_check(ct_poly: Rq, A_, pos: int, row: int):
             a0_inv = pow(pk_poly.coeff[base], q-2, q)
             break
 
-    for rot in range(512):
+    for rot in range(256):
         xtimes_approx(ct_poly, 1)
 
         center = ct_poly.coeff[base] % q
@@ -131,7 +131,7 @@ def pk_mask_check(ct_poly: Rq, A_, pos: int, row: int):
         for candidate in list_candidate:
             cnt_invalid = 0
             c = a0_inv * candidate % q
-            if c < 416: ### Negative values must be considered
+            if c < 416 or c > 2913: ### Negative values must be considered
                 for i in range(256):
                     v = comp(c * pk_poly.coeff[(i+base) % 256] % q)
                     if v == comp(ct_poly.coeff[(i+base) % 256]): ### We can use compressed ciphertext
