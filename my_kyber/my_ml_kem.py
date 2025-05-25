@@ -531,10 +531,10 @@ class my_ML_KEM:
 
         w = v - intt_stu
         m = Rq.msgencode(w)
-        # print(m)
-        # print(hex(m))
-        # print(w)
-        # input()
+        print(m)
+        print(hex(m))
+        print(w)
+        input()
 
         return m.to_bytes(32, 'big')
 

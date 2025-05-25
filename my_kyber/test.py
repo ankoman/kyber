@@ -1,5 +1,6 @@
 from my_ml_kem import *
-import random, copy
+import numpy as np
+import random, copy, math
 
 class test_ML_KEM(my_ML_KEM):
     def cca_dec_out_mp(self, c: bytearray, sk: bytearray):
@@ -341,7 +342,24 @@ def main():
         if hw_mp != 300:
             print(seed, hex(m), hex(d), rot, scalar, wrong_bits, hw_mp)
 
+def h2(p):
+    return -p*math.log2(p)-(1-p)*math.log2(1-p)
+
 if __name__ == '__main__':
-    main()
+    # main()
     # for i in range(10):
     #     pco()
+
+    from scipy.stats import norm
+
+    sum = 0
+    b_range = 10
+    tau = 100
+    for i in range(b_range):
+        p = norm.cdf(i + tau,0,51)
+        q = 1 - norm.cdf(i - tau,0,51)
+        sum += -p*math.log2(p)-(q)*math.log2(q)
+
+    print(sum / b_range)
+
+
