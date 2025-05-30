@@ -358,7 +358,7 @@ if __name__ == '__main__':
     for i in range(b_range):
         p = norm.cdf(i + tau,0,51)
         q = 1 - norm.cdf(i - tau,0,51)
-        sum += -p*math.log2(p)-(q)*math.log2(q)
+        sum += -norm.cdf(i,0,51)*math.log2(p)-(1-norm.cdf(i,0,51))*math.log2(q)
 
     print(sum / b_range)
 
