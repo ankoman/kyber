@@ -91,7 +91,11 @@ def ShowHWProb():
         p = c / (2**256)
         sum += p
         print(f'{i=}, {p=}, {sum=}, 2^{math.log2(sum):.5}')
-    
+
+
+def h2(p):
+    return -p*math.log2(p)-(1-p)*math.log2(1-p)
+
 tau = 100
 r = 2596
 print(f'{r=}, {832-tau <= r and r < 832+tau}, {2496-tau < r and r < 2496+tau}')
@@ -99,17 +103,27 @@ sanityCheck(r, 100)
 
 # ShowHWProb()
 
-p = 0.5
-N = 5500
+from scipy.stats import norm
+
+sigma = 51
+tau = 3*sigma
+p = norm.cdf(tau, 0, sigma) - norm.cdf(-tau, 0, sigma)
+print(f'{p=}')
 for a in range(1,20):
-    correctInEq_rate = 1 - p + (p/(2**a))
-    incorrectInEq_rate = p/(2**a)
-    availableInEq_rate = 1 - p + (p/(2**(a-1)))
-    correct_rate = correctInEq_rate / availableInEq_rate
+    I_strong = -math.log2(norm.cdf(-tau, 0, sigma))
+    I_weak = -math.log2(norm.cdf(tau, 0, sigma) - norm.cdf(-tau, 0, sigma))
     sum = 0
     for i in range(2,a+1):
         sum += i/2**(i-1)
-    queryFor1ineq = a*(1-p) + p*sum + p*a/2**(a-1)
 
-    print(f'{queryFor1ineq=}')
-    print(f'{a=}, {correct_rate=}')
+    E_weak = p*sum + p*a/2**(a-1)
+    p_incorrect = p/(2**(a-1))
+    # print(f'{a=}, {I_strong=}, {I_weak=}, {E_weak=}, {p_incorrect=}')
+    E_I = (1-p)*I_strong/a + p*I_weak/E_weak
+    gain = 1/E_I*(1/(1-h2(p_incorrect)))
+    print(f'{gain}, {E_I}, {p_incorrect}')
+
+
+
+
+
