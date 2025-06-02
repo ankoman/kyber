@@ -111,46 +111,7 @@ def xtimes_approx(poly: Rq, p: int):
         coeff = approx(coeff * -1)
         poly.coeff.append(coeff if coeff > 0 else coeff + q)
 
-def pk_mask_check(ct_poly: Rq, A_, pos: int, row: int):
-    flag = 0
-    pk_poly = Rq.intt(A_[row][pos]) * 1 ### Make values positive
 
-    a0_inv = 0
-    for base in range(512):
-        if pk_poly.coeff[base] != 0:
-            a0_inv = pow(pk_poly.coeff[base], q-2, q)
-            break
-
-    for rot in range(256):
-        xtimes_approx(ct_poly, 1)
-
-        center = ct_poly.coeff[base] % q
-        list_candidate = [center]
-        offsets = [-2, 2, -1, 1]
-        for offset in offsets:
-            candidate = (center + offset) % q
-            if approx(candidate) == center:
-                list_candidate.append(candidate)
-
-        for candidate in list_candidate:
-            cnt_invalid = 0
-            c = a0_inv * candidate % q
-            if c < 416 or c > 2913: ### Negative values must be considered
-                for i in range(256):
-                    v = comp(c * pk_poly.coeff[(i+base) % 256] % q)
-                    if v == comp(ct_poly.coeff[(i+base) % 256]): ### We can use compressed ciphertext
-                        cnt_invalid += 1
-                if cnt_invalid > 10:
-                    print(f'{cnt_invalid=}, {rot=}, invalid ', end='')
-                    if rot > 256:
-                        print("invalid rot")
-                    flag = 1
-                    break
-        else:
-            continue
-        break
-    if flag == 0:
-        print("undetected")
 
 def approx_check():
     for i in range(3329):
@@ -310,12 +271,53 @@ def pco():
             print(f"Failed s[{i}]: {diffCount(s[i].coeff, attacked_key)}")
         # print(attacked_key)
         # print(s[i])
+def pk_mask_check(ct_poly: Rq, A_, pos: int, row: int):
+    flag = 0
+    pk_poly = Rq.intt(A_[row][pos]) * 1 ### Make values positive
 
+    a0_inv = 0
+    for base in range(512):
+        if pk_poly.coeff[base] != 0:
+            a0_inv = pow(pk_poly.coeff[base], q-2, q)
+            break
+
+    for rot in range(256):
+        xtimes_approx(ct_poly, 1)
+
+        center = ct_poly.coeff[base] % q
+        list_candidate = [center]
+        offsets = [-2, 2, -1, 1]
+        for offset in offsets:
+            candidate = (center + offset) % q
+            if approx(candidate) == center:
+                list_candidate.append(candidate)
+
+        for candidate in list_candidate:
+            cnt_invalid = 0
+            c = a0_inv * candidate % q
+            if c < 416 or c > 2913: ### Negative values must be considered
+                for i in range(256):
+                    v = comp(c * pk_poly.coeff[(i+base) % 256] % q)
+                    if v == comp(ct_poly.coeff[(i+base) % 256]): ### We can use compressed ciphertext
+                        cnt_invalid += 1
+                if cnt_invalid > 10:
+                    print(f'{cnt_invalid=}, {rot=}, invalid ', end='')
+                    if rot > 256:
+                        print("invalid rot")
+                    flag = 1
+                    break
+        else:
+            continue
+        break
+    if flag == 0:
+        print("undetected")
+        input()
+        
 def main():
     for seed in range(1000):
-        random.seed(0)
+        #random.seed(0)
         rot = random.randint(0, 511)
-        scalar = random.randint(1, 415)
+        scalar = random.randint(0, 416)
         m = 0#random.randint(0, 2**256-1)
         d = random.randint(0, 2**256-1)
         z = random.randint(0, 2**256-1)
@@ -346,7 +348,7 @@ def h2(p):
     return -p*math.log2(p)-(1-p)*math.log2(1-p)
 
 if __name__ == '__main__':
-    # main()
+    main()
     # for i in range(10):
     #     pco()
 
