@@ -1,6 +1,7 @@
 from my_ml_kem import *
 import numpy as np
 import random, copy, math
+from decimal import *
 
 class test_ML_KEM(my_ML_KEM):
     def cca_dec_out_mp(self, c: bytearray, sk: bytearray):
@@ -111,8 +112,6 @@ def xtimes_approx(poly: Rq, p: int):
         coeff = approx(coeff * -1)
         poly.coeff.append(coeff if coeff > 0 else coeff + q)
 
-
-
 def approx_check():
     for i in range(3329):
         a = approx(q - i)
@@ -120,9 +119,9 @@ def approx_check():
         print(a-b)
 
 def prob():
-    # from decimal import *
     getcontext().prec = 150
-    math.log2(Decimal(1)-(Decimal(1)-(Decimal(1)/(Decimal(q)**Decimal(13))))**Decimal(2*q*n*k))
+    prob = math.log2(Decimal(1)-(Decimal(1)-(Decimal(1)/(Decimal(1024)**Decimal(14))))**Decimal(4*n*k))
+    print(prob)
 
 def diffCount(list_a, list_b):
     cnt = 0
@@ -233,11 +232,11 @@ def pco_768_rajendran(inst, dk, d_u, d_v, i, j):
             return 2
 
 def pco():
-    random.seed(1)
+    # random.seed(1)
     PK_MASK = True
     row = 0
     pos = 0
-    scalar = 1
+    scalar = 100
     rot = 0
     # rot = random.randint(0, 511)
     # scalar = random.randint(1, 415)
@@ -257,8 +256,9 @@ def pco():
     d_u, d_v = [Rq() for i in range(k)], Rq()
     if PK_MASK:
         d_u, d_v = inst.get_pk_mask(sk, pos, row, scalar, rot)
+        # d_u[0].coeff[0] += 10
 
-    for i in range(k):
+    for i in range(1):
         attacked_key = [None] * 256
         for j in range(256):
             key = pco_768_rajendran(inst, dk, d_u, d_v, i, j)
@@ -271,6 +271,7 @@ def pco():
             print(f"Failed s[{i}]: {diffCount(s[i].coeff, attacked_key)}")
         # print(attacked_key)
         # print(s[i])
+        
 def pk_mask_check(ct_poly: Rq, A_, pos: int, row: int):
     flag = 0
     pk_poly = Rq.intt(A_[row][pos]) * 1 ### Make values positive
@@ -348,9 +349,11 @@ def h2(p):
     return -p*math.log2(p)-(1-p)*math.log2(1-p)
 
 if __name__ == '__main__':
-    main()
-    # for i in range(10):
-    #     pco()
+    prob()
+    random.seed(0)
+    # main()
+    for i in range(10):
+        pco()
 
     from scipy.stats import norm
 
