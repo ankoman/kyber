@@ -349,22 +349,32 @@ def h2(p):
     return -p*math.log2(p)-(1-p)*math.log2(1-p)
 
 if __name__ == '__main__':
-    prob()
-    random.seed(0)
-    # main()
-    for i in range(10):
-        pco()
+    # prob()
+    # random.seed(0)
+    # # main()
+    # for i in range(10):
+    #     pco()
 
     from scipy.stats import norm
 
     sum = 0
-    b_range = 10
-    tau = 100
-    for i in range(b_range):
-        p = norm.cdf(i + tau,0,51)
-        q = 1 - norm.cdf(i - tau,0,51)
-        sum += -norm.cdf(i,0,51)*math.log2(p)-(1-norm.cdf(i,0,51))*math.log2(q)
+    b_range = 0
+    sigma_b = 51
+    M_r = 150
+    n_d = 10
+    tau = 2*M_r//n_d
+    list_i = list(range(-n_d//2, n_d//2+1))
+    d = max(list_i)
+    for i in list_i:
+        p = 1 - norm.cdf(d*tau, i*tau, sigma_b)
+        if p > 0.0:
+            I = -p*math.log2(p)
+        else:
+            I = 0
+        sum += I
+        print(I, p)
 
-    print(sum / b_range)
+    print(sum/(n_d+1))
+
 
 
