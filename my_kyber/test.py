@@ -357,24 +357,25 @@ if __name__ == '__main__':
 
     from scipy.stats import norm
 
-    sum = 0
+    sum_p = 0
     b_range = 0
     sigma_b = 51
     M_r = 150
-    n_d = 10
+    n_d = 100
     tau = 2*M_r//n_d
     list_i = list(range(-n_d//2, n_d//2+1))
     d = max(list_i)
     for i in list_i:
-        p = 1 - norm.cdf(d*tau, i*tau, sigma_b)
+        p = norm.cdf(d*tau, i*tau, sigma_b)
+        print(p)
         if p > 0.0:
-            I = -p*math.log2(p)
-        else:
-            I = 0
-        sum += I
-        print(I, p)
-
-    print(sum/(n_d+1))
+            sum_p += p
+    
+    sum_p /= (n_d + 1)
+    print(f'{sum_p=}')
+    sum_p = 1 - sum_p
+    print(f'{sum_p=}')
+    print(-sum_p*math.log2(sum_p))
 
 
 

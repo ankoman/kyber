@@ -20,6 +20,10 @@ class test_ML_KEM(my_ML_KEM):
         intt_stu = Rq.intt(stu)
 
         w = v - intt_stu
+        tau = 200
+        for i in range(n):
+            r = random.randint(0, 1)
+            w.coeff[i] = (w.coeff[i] + tau * (-1)**r)
 
         return w, v
 
@@ -114,11 +118,11 @@ def main():
         # print(np.array(v*1) - np.array(vp))
         list_dv.extend(np.array(v*1) - np.array(vp))
     
-    show_histogram(list_E, 'E', True)
+    show_histogram(list_E, 'E', False)
 
-    show_histogram(list_dv, 'dv')
+    # show_histogram(list_dv, 'dv')
 
-    show_histogram(list_v, 'v')
+    # show_histogram(list_v, 'v')
 
 if __name__ == '__main__':
     main()
