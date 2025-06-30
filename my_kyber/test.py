@@ -227,12 +227,43 @@ def pco_768_rajendran(inst, dk, d_u, d_v, i, j):
         else:
             return 2
 
+def pco_768_sakamoto_fix_vpos(inst, dk, d_u, d_v, i, j):
+    V = 208
+    U = 350
+    zero = (0).to_bytes(32, 'big')
+
+    # Make query U
+    u = copy.deepcopy(d_u)
+    v = copy.deepcopy(d_v)
+    tmp_v = v.coeff[0]
+    u[i].coeff[j] = (u[i].coeff[j] + U) % q
+    c1 = Rq.polyvecCompEncode(u)
+
+    # Make query V
+    v.coeff[0] = (tmp_v + 3*V) % q
+    if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+        v.coeff[0] = (tmp_v + 1*V) % q
+        if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+            return -2
+        else:
+            return -1
+    else:
+        v.coeff[0] = (tmp_v + 7*V) % q
+        if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+            v.coeff[0] = (tmp_v + 5*V) % q
+            if zero != inst.dec(dk, c1 + v.polyCompEncode()):
+                return 0
+            else:
+                return 1
+        else:
+            return 2
+
 def pco():
     # random.seed(1)
     PK_MASK = True
     row = 0
     pos = 0
-    scalar = 100
+    scalar = 1
     rot = 0
     # rot = random.randint(0, 511)
     # scalar = random.randint(1, 415)
@@ -257,7 +288,7 @@ def pco():
     for i in range(1):
         attacked_key = [None] * 256
         for j in range(256):
-            key = pco_768_rajendran(inst, dk, d_u, d_v, i, j)
+            key = pco_768_sakamoto_fix_vpos(inst, dk, d_u, d_v, i, j)
             # attacked_key[j] = key              ### Tanaka's method
             attacked_key[(256-j) % 256] = key if j == 0 else -key  ### Rajendra's method
         
