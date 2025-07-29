@@ -4,8 +4,29 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 
+def xtimes(poly: Rq, p: int):
+    for i in range(p):
+        coeff = poly.coeff.pop(0)
+        coeff = coeff * -1
+        poly.coeff.append(coeff if coeff > 0 else coeff + q)
+
 class test_ML_KEM(my_ML_KEM):
-    def test_dec(self, dk: bytearray, c: bytearray, vv) -> bytearray:
+
+    def get_pk_mask(self, sk: bytearray, pos: int, row: int, scalar: int, rot: int):
+        ### Decode
+        pk = sk[384*k:768*k+32]
+        A_ = self.genA(pk[-32:])
+        delta_u = [Rq.intt(A_[row][i]) * scalar for i in range(k)]
+        for i in range(k):
+            xtimes(delta_u[i], rot)
+
+        t_ = [Rq.decode(pk[12*32*i:]) for i in range(k)]
+        delta_v = Rq.intt(t_[row]) * scalar
+        xtimes(delta_v, rot)
+
+        return Rq.polyvecCompEncode(delta_u), delta_v.polyCompEncode() ### Compressed
+
+    def test_dec(self, dk: bytearray, c: bytearray) -> bytearray:
         dk = dk[:384*k]
         u = Rq.polyvecDecodeDecomp(c)
         v = Rq.polyDecodeDecomp(c[32*du*k:])
@@ -20,10 +41,10 @@ class test_ML_KEM(my_ML_KEM):
         intt_stu = Rq.intt(stu)
 
         w = v - intt_stu
-        tau = 200
-        for i in range(n):
-            r = random.randint(0, 1)
-            w.coeff[i] = (w.coeff[i] + tau * (-1)**r)
+        # tau = 200
+        # for i in range(n):
+        #     r = random.randint(0, 1)
+        #     w.coeff[i] = (w.coeff[i] + tau * (-1)**r)
 
         return w, v
 
@@ -95,6 +116,10 @@ def main():
     list_E = []
     list_dv = []
     list_v = []
+    pos = 0
+    row = 0
+    scalar = 1
+    rot = 0
     for seed in range(1000):
         m = 0#random.randint(0, 2**256-1)
         d = random.randint(0, 2**256-1)
@@ -110,7 +135,9 @@ def main():
         c, v = inst.test_enc(pk, tv_m)
         list_v.extend(v)
 
-        w, vp = inst.test_dec(sk, c, v)
+        d_u, d_v = inst.get_pk_mask(sk, pos, row, scalar, rot)
+
+        w, vp = inst.test_dec(sk, c)
         list_E.extend(w)
         # print(v)
         # print(v*1)
