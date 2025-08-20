@@ -6,11 +6,11 @@ def h2(p):
     p = min(max(p, 1e-12), 1 - 1e-12)
     return -p*math.log2(p)-(1-p)*math.log2(1-p)
 
-def clip(x):
-    if x < 0.5:
+def clip(x, th):
+    if x < th:
         return x
     else:
-        return 0.5
+        return th
 
 def h(p,q):
     p = min(max(p, 1e-12), 1 - 1e-12)
@@ -28,35 +28,37 @@ def false_positive():
 if __name__ == '__main__':
     false_positive()
 
-
-    p11 = 0
-    p00 = 0
-    p0 = 0
-
-    b_range = 0
-    sigma_b = 51
+    sigma = 51
     M_r = 256
-    n_d = 256
+    n_d = 32
     tau = 2*M_r//n_d
     list_i = list(range(-n_d//2, n_d//2+1))
     d = max(list_i)
-    c = -d*tau
+    list_G = []
 
-    for i in list_i:
-        p11 += clip(1 - norm.cdf(-c, i*tau, sigma_b))
-        p00 += clip(norm.cdf(-c, i*tau, sigma_b))
-        p0 += norm.cdf(-c, i*tau, sigma_b)
-    
-    p11 /= (n_d + 1)
-    p00 /= (n_d + 1)
-    p0 /= (n_d + 1)
-    p1 = 1 - p0
-    p10 = p1 - p11
-    p01 = p0 - p00
+    for b in range(104):
+        omega = 832 + b
 
-    print(f'{p11=}, {p10=}, {p01=}, {p00=}, {p0=}, {p1=}')
+        pX0 = norm.cdf(832, omega, sigma)
+        pX1 = 1 - pX0
+        
+        pY0 = 0
+        p11 = 0
+        for i in list_i:
+            pY0 += norm.cdf(832, i*tau+omega, sigma)
+            p11 += clip(1 - norm.cdf(832, i*tau + omega, sigma), pX1)
 
-    H_XY = p0*h(p00,p01) + p1*h(p10,p11)
-    H_X = 1
-    C = H_X - H_XY
-    print(f'{H_XY=}, {H_X=}, {C=}')
+        pY0 /= (n_d + 1)
+        pY1 = 1 - pY0
+        p11 /= (n_d + 1)
+        pY1X0 = (pY1 - p11) / pX0
+        pY1X1 = p11/pX1
+
+        H_YX = pX0*h2(pY1X0) + pX1*h2(pY1X1)
+        H_Y = h2(pY0)
+        C = H_Y - H_YX
+        G = 1/C
+        list_G.append(G)
+
+        print(f'{b}: {H_YX=}, {H_Y=}, {C=}, {G=}')
+    print(f'min G: {min(list_G)}')
