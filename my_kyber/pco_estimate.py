@@ -22,6 +22,13 @@ def delta_w():
     sum /= 3328 + 2**dv
     print(sum)
 
+def decode(val):
+    val = val % 3329
+    if val >= 832 and val < 2496:
+        return True
+    else:
+        return False
+    
 def H1_768():
     U = 300
     V = 208*3
@@ -39,25 +46,25 @@ def H1_768():
     ### Probabilities
     p_X1_H1 = 0 ### Pr(X=1|H_1)
     for idx in list_index:
-        if idx + 2*U + V >= 832:
+        if decode(idx + 2*U + V):
             p_X1_H1 += prob_U * p_priori[2]
-        if idx + 1*U + V >= 832:
+        if decode(idx + 1*U + V):
             p_X1_H1 += prob_U * p_priori[1]
     p_X0_H1 = 1 - p_X1_H1 ### Pr(X=0|H_1)
 
     p_X1_H1_ = 0 ### Pr(X=1|H_1_)
     for idx in list_index:
-        if idx + -2*U + V >= 832:
+        if decode(idx + -2*U + V):
             p_X1_H1_ += prob_U * p_priori[2]
-        if idx + -1*U + V >= 832:
+        if decode(idx + -1*U + V):
             p_X1_H1_ += prob_U * p_priori[1]
-        if idx + 0*U + V >= 832:
+        if decode(idx + 0*U + V):
             p_X1_H1_ += prob_U * p_priori[0]
     p_X0_H1_ = 1 - p_X1_H1_ ### Pr(X=0|H_1_)
 
     p_error = 0
     for idx in list_index:
-        if idx + 2*U > 832:
+        if decode(idx + 2*U):
             p_error += prob_U
     p_Y1 = 1 - (1 - p_error)**58 ###  Pr(Y=1)
 
@@ -86,7 +93,7 @@ def H1_768():
 
 def H5_768():
     U = 300
-    V = 208*3
+    V = 208*4
     M_r = 210
     n_d = 2
     tau = 2*M_r//n_d
@@ -101,25 +108,25 @@ def H5_768():
     ### Probabilities
     p_X1_H5 = 0 ### Pr(X=1|H_5)
     for idx in list_index:
-        if idx + 2*U + V >= 832:
+        if decode(idx + 2*U + V):
             p_X1_H5 += prob_U * p_priori[2]
     p_X0_H5 = 1 - p_X1_H5 ### Pr(X=0|H_5)
 
     p_X1_H5_ = 0 ### Pr(X=1|H_5_)
     for idx in list_index:
-        if idx + -2*U + V >= 832:
+        if decode(idx + -2*U + V):
             p_X1_H5_ += prob_U * p_priori[2]
-        if idx + -1*U + V >= 832:
+        if decode(idx + -1*U + V):
             p_X1_H5_ += prob_U * p_priori[1]
-        if idx + 0*U + V >= 832:
+        if decode(idx + 0*U + V):
             p_X1_H5_ += prob_U * p_priori[0]
-        if idx + 1*U + V >= 832:
+        if decode(idx + 1*U + V):
             p_X1_H5_ += prob_U * p_priori[1]
     p_X0_H5_ = 1 - p_X1_H5_ ### Pr(X=0|H_5_)
 
     p_error = 0
     for idx in list_index:
-        if idx + 2*U > 832:
+        if decode(idx + 2*U):
             p_error += prob_U
     p_Y1 = 1 - (1 - p_error)**58 ###  Pr(Y=1)
 
@@ -147,4 +154,5 @@ def H5_768():
     print(k)
 
 if __name__ == '__main__':
+    H1_768()
     H5_768()
