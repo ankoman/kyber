@@ -373,7 +373,24 @@ def main():
             print(seed, hex(m), hex(d), rot, scalar, wrong_bits, hw_mp)
 
 
+def check_linearlity():
+    from collections import Counter
+    list_cnt = []
+    for i in range(1023):
+        for j in range(1023):
+            ans = decomp((i+j) % 1024)
+            evl = decomp(i) + decomp(j)
+            res = ans - evl
+            list_cnt.append(res)
+    print(Counter(list_cnt))
+
+def delta_dist():
+    ### du=4
+    delta_uM = [129/3329, 1023/3329, 1024/3329, 1024/3329, 128/3329]
+    cbd = [1/16, 4/16, 6/16, 4/16, 1/16]
+
 if __name__ == '__main__':
+    check_linearlity()
     random.seed(0)
     # main()
     for i in range(10):

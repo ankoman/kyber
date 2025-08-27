@@ -17,8 +17,13 @@ class test_ML_KEM(my_ML_KEM):
         pk = sk[384*k:768*k+32]
         A_ = self.genA(pk[-32:])
         delta_u = [Rq.intt(A_[row][i]) * scalar for i in range(k)]
+        print(abs(Rq.ntt(delta_u[0])+Rq()))
+        print(sum(abs(Rq.ntt(delta_u[0])+Rq())))
         for i in range(k):
             xtimes(delta_u[i], rot)
+        print(abs(Rq.ntt(delta_u[0])+Rq()))
+        print(sum(abs(Rq.ntt(delta_u[0])+Rq())))
+        input()
 
         t_ = [Rq.decode(pk[12*32*i:]) for i in range(k)]
         delta_v = Rq.intt(t_[row]) * scalar
@@ -112,15 +117,15 @@ def show_histogram(data, label, gaussian = False):
     plt.show()
 
 def main():
-    # random.seed(0)
+    random.seed(0)
     list_E = []
     list_dv = []
     list_v = []
     pos = 0
     row = 0
     scalar = 1
-    rot = 0
-    for seed in range(1000):
+    rot = 1
+    for seed in range(1,100):
         m = 0#random.randint(0, 2**256-1)
         d = random.randint(0, 2**256-1)
         z = random.randint(0, 2**256-1)
@@ -138,7 +143,7 @@ def main():
         d_u, d_v = inst.get_pk_mask(sk, pos, row, scalar, rot)
 
         w, vp = inst.test_dec(sk, c)
-        list_E.extend(w)
+        list_E.extend(d_u)
         # print(v)
         # print(v*1)
         # print(vp)
