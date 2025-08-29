@@ -3,6 +3,8 @@ from scipy.stats import norm, entropy
 from decimal import *
 import numpy as np
 
+list_U10 = [0,3,7,10,13,16,20,23,26,29,33,36,39,42,46,49,52,55,59,62,65,68,72,75,78,81,85,88,91,94,98,101,104,107,111,114,117,120,124,127,130,133,137,140,143,146,150,153,156,159,163,166,169,172,176,179,182,185,189,192,195,198,202,205,208,211,215,218,221,224,228,231,234,237,241,244,247,250,254,257,260,263,267,270,273,276,280,283,286,289,293,296,299,302,306,309,312,315,319,322,325,328,332,335,338,341,345,348,351,354,358,361,364,367,371,374,377,380,384,387,390,393,397,400,403,406,410,413,416]
+
 def number_of_2():
     a = 59
     p = 1 - norm.cdf((a-0.5-96)/9.16, 0, 1)
@@ -28,39 +30,37 @@ def decode(val):
         return True
     else:
         return False
-    
-def H1_768():
-    U = 300
-    V = 208*3
-    M_r = 210
-    n_d = 2
+
+def Hi_768(U, V, M_r, n_d, hyp, hyp_, DEBUG=False):
     tau = 2*M_r//n_d
     list_i = list(range(-n_d//2, n_d//2+1))
 
     ### Uniform dist.
     list_index = np.array(list_i)*tau
     prob_U = 1 / len(list_index)
-    p_priori = [6/16, 4/16, 1/16]
-    print(list_index)
+    p_priori = np.array([6/16, 4/16, 1/16, 1/16, 4/16])   ### -1 = 4/16, -2 = 1/16
+    mask = np.zeros_like(p_priori)
+    mask[hyp + hyp_] = p_priori[hyp + hyp_]
+    p_priori = mask / sum(mask)
+    # print(p_priori)
+    # print(list_index)
 
     ### Probabilities
-    p_X1_H1 = 0 ### Pr(X=1|H_1)
+    p_X1_Hi = 0 ### Pr(X=1|H_i)
+    p_Hi = sum(p_priori[i] for i in hyp)
     for idx in list_index:
-        if decode(idx + 2*U + V):
-            p_X1_H1 += prob_U * p_priori[2]
-        if decode(idx + 1*U + V):
-            p_X1_H1 += prob_U * p_priori[1]
-    p_X0_H1 = 1 - p_X1_H1 ### Pr(X=0|H_1)
+        for s in hyp:
+            if decode(idx + s*U + V):
+                p_X1_Hi += prob_U * p_priori[s] / p_Hi
+    p_X0_Hi = 1 - p_X1_Hi ### Pr(X=0|H_i)
 
-    p_X1_H1_ = 0 ### Pr(X=1|H_1_)
+    p_X1_Hi_ = 0 ### Pr(X=1|H_i_)
+    p_Hi_ = sum(p_priori[i] for i in hyp_)
     for idx in list_index:
-        if decode(idx + -2*U + V):
-            p_X1_H1_ += prob_U * p_priori[2]
-        if decode(idx + -1*U + V):
-            p_X1_H1_ += prob_U * p_priori[1]
-        if decode(idx + 0*U + V):
-            p_X1_H1_ += prob_U * p_priori[0]
-    p_X0_H1_ = 1 - p_X1_H1_ ### Pr(X=0|H_1_)
+        for s in hyp_:
+            if decode(idx + s*U + V):
+                p_X1_Hi_ += prob_U * p_priori[s] / p_Hi_
+    p_X0_Hi_ = 1 - p_X1_Hi_ ### Pr(X=0|H_i_)
 
     p_error = 0
     for idx in list_index:
@@ -68,91 +68,58 @@ def H1_768():
             p_error += prob_U
     p_Y1 = 1 - (1 - p_error)**58 ###  Pr(Y=1)
 
-    p_X0 = p_X0_H1*5/16 + p_X0_H1_*11/16 ### Pr(X=0)
-    a = p_X0*p_Y1 ### Pr(Y=1,X=0)
-    p_Y1_H1 = a + (1-a)*p_X1_H1 ### Pr(Y=1|H_1)
-    p_Y1_H1_ = a + (1-a)*p_X1_H1_ ### Pr(Y=1|H_1_)
-
-    print(p_Y1)
-    print(p_X1_H1)
-    print(p_X1_H1_)
-    print(p_Y1_H1)
-    print(p_Y1_H1_)
+    p_X0 = p_X0_Hi*p_Hi + p_X0_Hi_*p_Hi_ ### Pr(X=0)
+    a = p_Y1 ### Pr(Y=1|X=0), X and Y are independent.
+    p_Y1_Hi = a + (1-a)*p_X1_Hi ### Pr(Y=1|H_i)
+    p_Y1_Hi_ = a + (1-a)*p_X1_Hi_ ### Pr(Y=1|H_i_)
 
     ### KL Divergence
-    KL_H1 = entropy([p_Y1_H1, 1 - p_Y1_H1], [p_Y1_H1_, 1 - p_Y1_H1_])
-    KL_H1_ = entropy([p_Y1_H1_, 1 - p_Y1_H1_], [p_Y1_H1, 1 - p_Y1_H1])
-    print(KL_H1, KL_H1_)
+    KL_Hi = entropy([p_Y1_Hi, 1 - p_Y1_Hi], [p_Y1_Hi_, 1 - p_Y1_Hi_], base=2)
+    KL_Hi_ = entropy([p_Y1_Hi_, 1 - p_Y1_Hi_], [p_Y1_Hi, 1 - p_Y1_Hi], base=2)
 
     ### Expected number of observations to achieve an LLR (0.95/0.05)
-    k_H1 = (math.log2(0.95/0.05) - math.log2(sum(p_priori[1:3])/sum(p_priori)))/KL_H1
-    k_H1_ = (math.log2(0.95/0.05) - math.log2(sum(p_priori)/sum(p_priori[1:3])))/KL_H1_
-    k = sum(p_priori[1:3]) * k_H1 + sum(p_priori) * k_H1_
+    llr = math.log2(0.95/0.05)
+    priori_odds = math.log2(p_Hi/p_Hi_)
+    priori_odds_ = math.log2(p_Hi_/p_Hi)
 
-    print(k)
+    k_Hi = (llr - priori_odds)/KL_Hi
+    k_Hi_ = (llr - priori_odds_)/KL_Hi_
+    k = p_Hi * k_Hi + p_Hi_ * k_Hi_
 
-def H5_768():
-    U = 300
-    V = 208*4
-    M_r = 210
-    n_d = 2
-    tau = 2*M_r//n_d
-    list_i = list(range(-n_d//2, n_d//2+1))
+    if DEBUG:
+        print(p_X0)
+        print(p_Y1)
+        print(p_X1_Hi)
+        print(p_X1_Hi_)
+        print(p_Y1_Hi)
+        print(p_Y1_Hi_)
 
-    ### Uniform dist.
-    list_index = np.array(list_i)*tau
-    prob_U = 1 / len(list_index)
-    p_priori = [6/16, 4/16, 1/16]
-    print(list_index)
+        print(f'Traget LLR: {llr}')
+        print(f'{priori_odds=:f}, {priori_odds_=:f}')
+        print(f'{KL_Hi=:f}, {KL_Hi_=:f}')
 
-    ### Probabilities
-    p_X1_H5 = 0 ### Pr(X=1|H_5)
-    for idx in list_index:
-        if decode(idx + 2*U + V):
-            p_X1_H5 += prob_U * p_priori[2]
-    p_X0_H5 = 1 - p_X1_H5 ### Pr(X=0|H_5)
+        print(k_Hi, k_Hi_, k)
+    return k
 
-    p_X1_H5_ = 0 ### Pr(X=1|H_5_)
-    for idx in list_index:
-        if decode(idx + -2*U + V):
-            p_X1_H5_ += prob_U * p_priori[2]
-        if decode(idx + -1*U + V):
-            p_X1_H5_ += prob_U * p_priori[1]
-        if decode(idx + 0*U + V):
-            p_X1_H5_ += prob_U * p_priori[0]
-        if decode(idx + 1*U + V):
-            p_X1_H5_ += prob_U * p_priori[1]
-    p_X0_H5_ = 1 - p_X1_H5_ ### Pr(X=0|H_5_)
+def main(M_r, n_d):
+    hyp = [1]
+    hyp_ = [2]
 
-    p_error = 0
-    for idx in list_index:
-        if decode(idx + 2*U):
-            p_error += prob_U
-    p_Y1 = 1 - (1 - p_error)**58 ###  Pr(Y=1)
-
-    p_X0 = p_X0_H5*1/16 + p_X0_H5_*15/16 ### Pr(X=0)
-    a = p_X0*p_Y1 ### Pr(Y=1,X=0)
-    p_Y1_H5 = a + (1-a)*p_X1_H5 ### Pr(Y=1|H_5)
-    p_Y1_H5_ = a + (1-a)*p_X1_H5_ ### Pr(Y=1|H_5_)
-
-    print(p_Y1)
-    print(p_X1_H5)
-    print(p_X1_H5_)
-    print(p_Y1_H5)
-    print(p_Y1_H5_)
-
-    ### KL Divergence
-    KL_H5 = entropy([p_Y1_H5, 1 - p_Y1_H5], [p_Y1_H5_, 1 - p_Y1_H5_])
-    KL_H5_ = entropy([p_Y1_H5_, 1 - p_Y1_H5_], [p_Y1_H5, 1 - p_Y1_H5])
-    print(KL_H5, KL_H5_)
-
-    ### Expected number of observations to achieve an LLR (0.95/0.05)
-    k_H5 = (math.log2(0.95/0.05) - math.log2(1/15))/KL_H5
-    k_H5_ = (math.log2(0.95/0.05) - math.log2(15))/KL_H5_
-    k = (1/16) * k_H5 + (15/16) * k_H5_
-
-    print(k)
+    list_k = []
+    for U in list_U10:
+        for V in [0, 208, 416, 624, 832, 1040, 1248, 1456]:
+            k = Hi_768(U, V, M_r, n_d, hyp, hyp_)
+            list_k.append(k)
+            print(f'{U=}, {V=}, {k=}')
+    print(min(list_k))
 
 if __name__ == '__main__':
-    H1_768()
-    H5_768()
+    hyp = [1]
+    hyp_ = [2]
+    U = 302
+    V = 624
+    M_r = 210
+    n_d = 2
+    k = Hi_768(U, V, M_r, n_d, hyp, hyp_, True)
+
+    main(M_r, n_d)
