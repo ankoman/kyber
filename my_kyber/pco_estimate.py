@@ -3,7 +3,7 @@ from scipy.stats import norm, entropy
 from decimal import *
 import numpy as np
 
-list_U10 = [0,3,7,10,13,16,20,23,26,29,33,36,39,42,46,49,52,55,59,62,65,68,72,75,78,81,85,88,91,94,98,101,104,107,111,114,117,120,124,127,130,133,137,140,143,146,150,153,156,159,163,166,169,172,176,179,182,185,189,192,195,198,202,205,208,211,215,218,221,224,228,231,234,237,241,244,247,250,254,257,260,263,267,270,273,276,280,283,286,289,293,296,299,302,306,309,312,315,319,322,325,328,332,335,338,341,345,348,351,354,358,361,364,367,371,374,377,380,384,387,390,393,397,400,403,406,410,413,416]
+list_U10 = [3,7,10,13,16,20,23,26,29,33,36,39,42,46,49,52,55,59,62,65,68,72,75,78,81,85,88,91,94,98,101,104,107,111,114,117,120,124,127,130,133,137,140,143,146,150,153,156,159,163,166,169,172,176,179,182,185,189,192,195,198,202,205,208,211,215,218,221,224,228,231,234,237,241,244,247,250,254,257,260,263,267,270,273,276,280,283,286,289,293,296,299,302,306,309,312,315,319,322,325,328,332,335,338,341,345,348,351,354,358,361,364,367,371,374,377,380,384,387,390,393,397,400,403,406,410,413,416]
 
 def number_of_2():
     a = 59
@@ -31,6 +31,20 @@ def decode(val):
     else:
         return False
 
+def expected_num_obs(p, expected_llr):
+    ### Expected number of observations until 0/1 is observed to achieve an expected LLR
+    q = 0
+    expected_num = 0
+    for i in range(1, 10000):
+        p_i = p * (1-p)**(i-1)
+        expected_num += p_i * i
+        q += p_i
+        llr = math.log2(q/(1-q))
+        if llr >= expected_llr:
+            break
+    return expected_num
+
+
 def Hi_768(U, V, M_r, n_d, hyp, hyp_, DEBUG=False):
     tau = 2*M_r//n_d
     list_i = list(range(-n_d//2, n_d//2+1))
@@ -52,6 +66,8 @@ def Hi_768(U, V, M_r, n_d, hyp, hyp_, DEBUG=False):
         for s in hyp:
             if decode(idx + s*U + V):
                 p_X1_Hi += prob_U * p_priori[s] / p_Hi
+    if p_X1_Hi > 1:
+        p_X1_Hi = 1
     p_X0_Hi = 1 - p_X1_Hi ### Pr(X=0|H_i)
 
     p_X1_Hi_ = 0 ### Pr(X=1|H_i_)
@@ -60,6 +76,8 @@ def Hi_768(U, V, M_r, n_d, hyp, hyp_, DEBUG=False):
         for s in hyp_:
             if decode(idx + s*U + V):
                 p_X1_Hi_ += prob_U * p_priori[s] / p_Hi_
+    if p_X1_Hi_ > 1:
+        p_X1_Hi_ = 1
     p_X0_Hi_ = 1 - p_X1_Hi_ ### Pr(X=0|H_i_)
 
     p_error = 0
@@ -77,13 +95,32 @@ def Hi_768(U, V, M_r, n_d, hyp, hyp_, DEBUG=False):
     KL_Hi = entropy([p_Y1_Hi, 1 - p_Y1_Hi], [p_Y1_Hi_, 1 - p_Y1_Hi_], base=2)
     KL_Hi_ = entropy([p_Y1_Hi_, 1 - p_Y1_Hi_], [p_Y1_Hi, 1 - p_Y1_Hi], base=2)
 
-    ### Expected number of observations to achieve an LLR (0.95/0.05)
-    llr = math.log2(0.95/0.05)
-    priori_odds = math.log2(p_Hi/p_Hi_)
-    priori_odds_ = math.log2(p_Hi_/p_Hi)
+    ### Expected number of observations to achieve an LLR (0.99/0.01)
+    llr = math.log2(0.99/0.01)
+    priori_odds = 0#math.log2(p_Hi/p_Hi_)
+    priori_odds_ = 0#math.log2(p_Hi_/p_Hi)
 
-    k_Hi = (llr - priori_odds)/KL_Hi
-    k_Hi_ = (llr - priori_odds_)/KL_Hi_
+    ### Inf handling
+    if math.isinf(KL_Hi) and math.isinf(KL_Hi_):
+        k_Hi = 1
+        k_Hi_ = 1
+    else:
+        tmp = -math.log2(1+2**llr)
+        if math.isinf(KL_Hi):   # An element of [p_Y1_Hi_, 1 - p_Y1_Hi_] is 0
+            if p_Y1_Hi_ == 0:   # When Y=1 is observed, H_i is surely true.
+                k_Hi = expected_num_obs(p_Y1_Hi, llr) #tmp/math.log2(p_Y1_Hi)
+            else:               # When Y=0 is observed, H_i is surely true.
+                k_Hi = expected_num_obs(1-p_Y1_Hi, llr) #tmp/math.log2(1-p_Y1_Hi)
+        else:
+            k_Hi = (llr - priori_odds)/KL_Hi
+        if math.isinf(KL_Hi_):  # An element of [p_Y1_Hi, 1 - p_Y1_Hi] is 0
+            if p_Y1_Hi == 0:    # When Y=1 is observed, H_i_ is surely true.
+                k_Hi_ = expected_num_obs(p_Y1_Hi_, llr) #tmp/math.log2(p_Y1_Hi_)
+            else:
+                k_Hi_ = expected_num_obs(1 - p_Y1_Hi_, llr) #tmp/math.log2(1-p_Y1_Hi_)
+        else:
+            k_Hi_ = (llr - priori_odds_)/KL_Hi_
+
     k = p_Hi * k_Hi + p_Hi_ * k_Hi_
 
     if DEBUG:
@@ -101,25 +138,29 @@ def Hi_768(U, V, M_r, n_d, hyp, hyp_, DEBUG=False):
         print(k_Hi, k_Hi_, k)
     return k
 
-def main(M_r, n_d):
-    hyp = [1]
-    hyp_ = [2]
+def main(hyp, hyp_, M_r, n_d):
 
-    list_k = []
-    for U in list_U10:
-        for V in [0, 208, 416, 624, 832, 1040, 1248, 1456]:
-            k = Hi_768(U, V, M_r, n_d, hyp, hyp_)
-            list_k.append(k)
-            print(f'{U=}, {V=}, {k=}')
-    print(min(list_k))
+    list_min_k = []
+    for M_r in [256]:
+        for i in range(1, M_r.bit_length()):
+            n_d = 2**i
+            list_k = []
+            for U in list_U10:
+                for V in [0, 208, 416, 624, 832, 1040, 1248, 1456]:
+                    k = Hi_768(U, V, M_r, n_d, hyp, hyp_)
+                    list_k.append(k)
+                    print(f'{M_r=}, {n_d=}, {U=}, {V=}, {k=}')
+            list_min_k.append(min(list_k))
+    print(max(list_min_k))
+    print(list_min_k)
 
 if __name__ == '__main__':
     hyp = [1]
     hyp_ = [2]
-    U = 302
-    V = 624
-    M_r = 210
+    U = 260
+    V = 416
+    M_r = 100
     n_d = 2
     k = Hi_768(U, V, M_r, n_d, hyp, hyp_, True)
 
-    main(M_r, n_d)
+    main(hyp, hyp_, M_r, n_d)
