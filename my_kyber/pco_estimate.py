@@ -31,16 +31,16 @@ def decode(val):
     else:
         return False
 
-def expected_num_obs(p, expected_llr):
-    ### Expected number of observations until 0/1 is observed to achieve an expected LLR
+def expected_num_obs(p, expected_p):
+    ### Expected number of observations until 0/1 is observed to achieve an expected probability
     q = 0
     expected_num = 0
-    for i in range(1, 10000):
+    for i in range(1, 100):
         p_i = p * (1-p)**(i-1)
         expected_num += p_i * i
         q += p_i
         llr = math.log2(q/(1-q))
-        if llr >= expected_llr:
+        if q >= expected_p:
             break
     return expected_num
 
@@ -84,7 +84,7 @@ def Hi_768(U, V, M_r, n_d, hyp, hyp_, DEBUG=False):
     for idx in list_index:
         if decode(idx + 2*U):
             p_error += prob_U
-    p_Y1 = 1 - (1 - p_error)**58 ###  Pr(Y=1)
+    p_Y1 = 1 - (1 - p_error)**32 ###  Pr(Y=1)
 
     p_X0 = p_X0_Hi*p_Hi + p_X0_Hi_*p_Hi_ ### Pr(X=0)
     a = p_Y1 ### Pr(Y=1|X=0), X and Y are independent.
@@ -96,30 +96,33 @@ def Hi_768(U, V, M_r, n_d, hyp, hyp_, DEBUG=False):
     KL_Hi_ = entropy([p_Y1_Hi_, 1 - p_Y1_Hi_], [p_Y1_Hi, 1 - p_Y1_Hi], base=2)
 
     ### Expected number of observations to achieve an LLR (0.99/0.01)
-    llr = math.log2(0.99/0.01)
-    priori_odds = 0#math.log2(p_Hi/p_Hi_)
-    priori_odds_ = 0#math.log2(p_Hi_/p_Hi)
+    target_p = 0.99
+    target_llr = math.log2(target_p/(1-target_p))
+    priori_odds = math.log2(p_Hi/p_Hi_)
+    priori_odds_ = math.log2(p_Hi_/p_Hi)
 
-    ### Inf handling
+    ### Inf and minus handling
+    KL_Hi = abs(KL_Hi)
+    KL_Hi_ = abs(KL_Hi_)
     if math.isinf(KL_Hi) and math.isinf(KL_Hi_):
         k_Hi = 1
         k_Hi_ = 1
     else:
-        tmp = -math.log2(1+2**llr)
+        tmp = -math.log2(1+2**target_llr)
         if math.isinf(KL_Hi):   # An element of [p_Y1_Hi_, 1 - p_Y1_Hi_] is 0
             if p_Y1_Hi_ == 0:   # When Y=1 is observed, H_i is surely true.
-                k_Hi = expected_num_obs(p_Y1_Hi, llr) #tmp/math.log2(p_Y1_Hi)
+                k_Hi = expected_num_obs(p_Y1_Hi, target_p) #tmp/math.log2(p_Y1_Hi)
             else:               # When Y=0 is observed, H_i is surely true.
-                k_Hi = expected_num_obs(1-p_Y1_Hi, llr) #tmp/math.log2(1-p_Y1_Hi)
+                k_Hi = expected_num_obs(1-p_Y1_Hi, target_p) #tmp/math.log2(1-p_Y1_Hi)
         else:
-            k_Hi = (llr - priori_odds)/KL_Hi
+            k_Hi = (target_llr - priori_odds)/KL_Hi
         if math.isinf(KL_Hi_):  # An element of [p_Y1_Hi, 1 - p_Y1_Hi] is 0
             if p_Y1_Hi == 0:    # When Y=1 is observed, H_i_ is surely true.
-                k_Hi_ = expected_num_obs(p_Y1_Hi_, llr) #tmp/math.log2(p_Y1_Hi_)
+                k_Hi_ = expected_num_obs(p_Y1_Hi_, target_p) #tmp/math.log2(p_Y1_Hi_)
             else:
-                k_Hi_ = expected_num_obs(1 - p_Y1_Hi_, llr) #tmp/math.log2(1-p_Y1_Hi_)
+                k_Hi_ = expected_num_obs(1 - p_Y1_Hi_, target_p) #tmp/math.log2(1-p_Y1_Hi_)
         else:
-            k_Hi_ = (llr - priori_odds_)/KL_Hi_
+            k_Hi_ = (target_llr - priori_odds_)/KL_Hi_
 
     k = p_Hi * k_Hi + p_Hi_ * k_Hi_
 
@@ -131,7 +134,7 @@ def Hi_768(U, V, M_r, n_d, hyp, hyp_, DEBUG=False):
         print(p_Y1_Hi)
         print(p_Y1_Hi_)
 
-        print(f'Traget LLR: {llr}')
+        print(f'Traget LLR: {target_llr}')
         print(f'{priori_odds=:f}, {priori_odds_=:f}')
         print(f'{KL_Hi=:f}, {KL_Hi_=:f}')
 
@@ -139,28 +142,29 @@ def Hi_768(U, V, M_r, n_d, hyp, hyp_, DEBUG=False):
     return k
 
 def main(hyp, hyp_, M_r, n_d):
-
     list_min_k = []
-    for M_r in [256]:
+    for M_r in [220]:
         for i in range(1, M_r.bit_length()):
             n_d = 2**i
-            list_k = []
-            for U in list_U10:
-                for V in [0, 208, 416, 624, 832, 1040, 1248, 1456]:
-                    k = Hi_768(U, V, M_r, n_d, hyp, hyp_)
-                    list_k.append(k)
-                    print(f'{M_r=}, {n_d=}, {U=}, {V=}, {k=}')
-            list_min_k.append(min(list_k))
+            if 2*M_r % n_d == 0:
+                list_k = []
+                for U in list_U10:
+                    for V in [0, 208, 416, 624, 832, 1040, 1248, 1456]:
+                        k = Hi_768(U, V, M_r, n_d, hyp, hyp_)
+                        list_k.append(k)
+                        # print(f'{M_r=}, {n_d=}, {U=}, {V=}, {k=}')
+                print(f'{M_r=}, {n_d=}, {min(list_k)}')
+                list_min_k.append(min(list_k))
     print(max(list_min_k))
-    print(list_min_k)
+    # print(list_min_k)
 
 if __name__ == '__main__':
-    hyp = [1]
-    hyp_ = [2]
-    U = 260
-    V = 416
-    M_r = 100
-    n_d = 2
+    hyp = [-2,-1,0]
+    hyp_ = [1,2]
+    U = 26
+    V = 625
+    M_r = 290
+    n_d = 4
     k = Hi_768(U, V, M_r, n_d, hyp, hyp_, True)
 
     main(hyp, hyp_, M_r, n_d)
