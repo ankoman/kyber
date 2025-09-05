@@ -33,17 +33,20 @@ def decode(val):
 
 def expected_num_obs(p, expected_p):
     ### Expected number of observations until 0/1 is observed to achieve an expected probability
-    q = 0
-    expected_num = 0
-    for i in range(1, 100):
-        p_i = p * (1-p)**(i-1)
-        expected_num += p_i * i
-        q += p_i
-        llr = math.log2(q/(1-q))
-        if q >= expected_p:
-            break
-    return expected_num
+    # q = 0
+    # expected_num = 0
+    # for i in range(1, 10000):
+    #     p_i = p * (1-p)**(i-1)
+    #     expected_num += p_i * i
+    #     q += p_i
+    #     llr = math.log2(q/(1-q))
+    #     if q >= expected_p:
+    #         break
 
+    if p != 0:
+        return 1/p
+    else:
+        return float('inf') 
 
 def Hi_768(U, V, M_r, n_d, hyp, hyp_, DEBUG=False):
     tau = 2*M_r//n_d
@@ -64,7 +67,7 @@ def Hi_768(U, V, M_r, n_d, hyp, hyp_, DEBUG=False):
     p_Hi = sum(p_priori[i] for i in hyp)
     for idx in list_index:
         for s in hyp:
-            if decode(idx + s*U + V):
+            if decode(idx - s*U + V):
                 p_X1_Hi += prob_U * p_priori[s] / p_Hi
     if p_X1_Hi > 1:
         p_X1_Hi = 1
@@ -74,22 +77,21 @@ def Hi_768(U, V, M_r, n_d, hyp, hyp_, DEBUG=False):
     p_Hi_ = sum(p_priori[i] for i in hyp_)
     for idx in list_index:
         for s in hyp_:
-            if decode(idx + s*U + V):
+            if decode(idx - s*U + V):
                 p_X1_Hi_ += prob_U * p_priori[s] / p_Hi_
     if p_X1_Hi_ > 1:
         p_X1_Hi_ = 1
     p_X0_Hi_ = 1 - p_X1_Hi_ ### Pr(X=0|H_i_)
 
-    p_error = 0
+    beta = 0
     for idx in list_index:
         if decode(idx + 2*U):
-            p_error += prob_U
-    p_Y1 = 1 - (1 - p_error)**32 ###  Pr(Y=1)
+            beta += prob_U
+    alpha = 1 - (1 - beta)**32 ###  Pr(Y=1)
 
     p_X0 = p_X0_Hi*p_Hi + p_X0_Hi_*p_Hi_ ### Pr(X=0)
-    a = p_Y1 ### Pr(Y=1|X=0), X and Y are independent.
-    p_Y1_Hi = a + (1-a)*p_X1_Hi ### Pr(Y=1|H_i)
-    p_Y1_Hi_ = a + (1-a)*p_X1_Hi_ ### Pr(Y=1|H_i_)
+    p_Y1_Hi = alpha + (1-alpha)*p_X1_Hi ### Pr(Y=1|H_i)
+    p_Y1_Hi_ = alpha + (1-alpha)*p_X1_Hi_ ### Pr(Y=1|H_i_)
 
     ### KL Divergence
     KL_Hi = entropy([p_Y1_Hi, 1 - p_Y1_Hi], [p_Y1_Hi_, 1 - p_Y1_Hi_], base=2)
@@ -105,30 +107,30 @@ def Hi_768(U, V, M_r, n_d, hyp, hyp_, DEBUG=False):
     KL_Hi = abs(KL_Hi)
     KL_Hi_ = abs(KL_Hi_)
     if math.isinf(KL_Hi) and math.isinf(KL_Hi_):
-        k_Hi = 1
-        k_Hi_ = 1
+        N_Hi = 1
+        N_Hi_ = 1
     else:
         tmp = -math.log2(1+2**target_llr)
         if math.isinf(KL_Hi):   # An element of [p_Y1_Hi_, 1 - p_Y1_Hi_] is 0
             if p_Y1_Hi_ == 0:   # When Y=1 is observed, H_i is surely true.
-                k_Hi = expected_num_obs(p_Y1_Hi, target_p) #tmp/math.log2(p_Y1_Hi)
+                N_Hi = expected_num_obs(p_Y1_Hi, target_p) #tmp/math.log2(p_Y1_Hi)
             else:               # When Y=0 is observed, H_i is surely true.
-                k_Hi = expected_num_obs(1-p_Y1_Hi, target_p) #tmp/math.log2(1-p_Y1_Hi)
+                N_Hi = expected_num_obs(1-p_Y1_Hi, target_p) #tmp/math.log2(1-p_Y1_Hi)
         else:
-            k_Hi = (target_llr - priori_odds)/KL_Hi
+            N_Hi = (target_llr - priori_odds)/KL_Hi
         if math.isinf(KL_Hi_):  # An element of [p_Y1_Hi, 1 - p_Y1_Hi] is 0
             if p_Y1_Hi == 0:    # When Y=1 is observed, H_i_ is surely true.
-                k_Hi_ = expected_num_obs(p_Y1_Hi_, target_p) #tmp/math.log2(p_Y1_Hi_)
+                N_Hi_ = expected_num_obs(p_Y1_Hi_, target_p) #tmp/math.log2(p_Y1_Hi_)
             else:
-                k_Hi_ = expected_num_obs(1 - p_Y1_Hi_, target_p) #tmp/math.log2(1-p_Y1_Hi_)
+                N_Hi_ = expected_num_obs(1 - p_Y1_Hi_, target_p) #tmp/math.log2(1-p_Y1_Hi_)
         else:
-            k_Hi_ = (target_llr - priori_odds_)/KL_Hi_
+            N_Hi_ = (target_llr - priori_odds_)/KL_Hi_
 
-    k = p_Hi * k_Hi + p_Hi_ * k_Hi_
+    N = p_Hi * N_Hi + p_Hi_ * N_Hi_
 
     if DEBUG:
+        print(alpha)
         print(p_X0)
-        print(p_Y1)
         print(p_X1_Hi)
         print(p_X1_Hi_)
         print(p_Y1_Hi)
@@ -138,33 +140,87 @@ def Hi_768(U, V, M_r, n_d, hyp, hyp_, DEBUG=False):
         print(f'{priori_odds=:f}, {priori_odds_=:f}')
         print(f'{KL_Hi=:f}, {KL_Hi_=:f}')
 
-        print(k_Hi, k_Hi_, k)
-    return k
+        print(N_Hi, N_Hi_, N)
+    return N_Hi, N_Hi_
 
 def main(hyp, hyp_, M_r, n_d):
-    list_min_k = []
-    for M_r in [220]:
+    print(f'M_r, n_d, U, V, k_Hi, k_Hi_')
+    list_min_N = []
+    list_min_N_ = []
+    for M_r in range(200, 300):
         for i in range(1, M_r.bit_length()):
             n_d = 2**i
             if 2*M_r % n_d == 0:
-                list_k = []
+                list_N = []
+                list_N_ = []
                 for U in list_U10:
-                    for V in [0, 208, 416, 624, 832, 1040, 1248, 1456]:
-                        k = Hi_768(U, V, M_r, n_d, hyp, hyp_)
-                        list_k.append(k)
-                        # print(f'{M_r=}, {n_d=}, {U=}, {V=}, {k=}')
-                print(f'{M_r=}, {n_d=}, {min(list_k)}')
-                list_min_k.append(min(list_k))
-    print(max(list_min_k))
+                    for V in [0, 208, 416, 624, 832, 1040, 1248, 1456, 1665, 1873, 2081, 2289, 2497, 2705, 2913, 3121]:
+                        N_Hi, N_Hi_ = Hi_768(U, V, M_r, n_d, hyp, hyp_)
+                        list_N.append(N_Hi)
+                        list_N_.append(N_Hi_)
+                        print(f'{M_r}, {n_d}, {U}, {V}, {N_Hi}, {N_Hi_}')
+                print(f'{M_r}, {n_d}, {min(list_N)}, {min(list_N_)}')
+                list_min_N.append(min(list_N))
+                list_min_N_.append(min(list_N_))
+    print(max(list_min_N))
+    print(max(list_min_N_))
+
     # print(list_min_k)
 
-if __name__ == '__main__':
-    hyp = [-2,-1,0]
-    hyp_ = [1,2]
-    U = 26
-    V = 625
-    M_r = 290
-    n_d = 4
-    k = Hi_768(U, V, M_r, n_d, hyp, hyp_, True)
+def cal_N_Hi_min(M_r, n_d, hyp, hyp_):
+    list_N = []
+    list_N_ = []
+    for U in list_U10:
+        for V in [0, 208, 416, 624, 832, 1040, 1248, 1456, 1665, 1873, 2081, 2289, 2497, 2705, 2913, 3121]:
+            N_Hi, N_Hi_ = Hi_768(U, V, M_r, n_d, hyp, hyp_)
+            list_N.append(N_Hi)
+            list_N_.append(N_Hi_)
+    return min(list_N), min(list_N_)
 
-    main(hyp, hyp_, M_r, n_d)
+def cal_N_obs_min():
+    for M_r in range(100,300):
+        for i in range(1, M_r.bit_length()):
+            n_d = 2**i
+            if 2*M_r % n_d == 0:
+                hyp, hyp_ = [-2,-1,0], [1,2]  ### H_0 null hypothesis and alternative hypothesis
+                N_H0_min, N_H0_min_ = cal_N_Hi_min(M_r, n_d, hyp, hyp_)
+
+                hyp, hyp_ = [-2,-1], [0]  ### H_1 null hypothesis and alternative hypothesis
+                N_H1_min, N_H1_min_ = cal_N_Hi_min(M_r, n_d, hyp, hyp_)
+
+                hyp, hyp_ = [1], [2]  ### H_2 null hypothesis and alternative hypothesis
+                N_H2_min, N_H2_min_ = cal_N_Hi_min(M_r, n_d, hyp, hyp_)
+
+                hyp, hyp_ = [-2], [-1]  ### H_3 null hypothesis and alternative hypothesis
+                N_H3_min, N_H3_min_ = cal_N_Hi_min(M_r, n_d, hyp, hyp_)
+
+                N_obs_min = (
+                    (1/16)*(N_H0_min + N_H1_min + N_H3_min) + 
+                    (4/16)*(N_H0_min + N_H1_min + N_H3_min_) +
+                    (6/16)*(N_H0_min + N_H1_min_) +
+                    (4/16)*(N_H0_min_ + N_H2_min) +
+                    (1/16)*(N_H0_min_ + N_H2_min_))
+
+                print(f'{M_r}, {n_d}, {N_obs_min}')
+
+if __name__ == '__main__':
+    ### H_0
+    # hyp = [-2,-1,0]   ### null hypothesis
+    # hyp_ = [1,2]  ### alternative hypothesis
+    ### H_1
+    # hyp = [-2,-1]   ### null hypothesis
+    # hyp_ = [0]  ### alternative hypothesis
+    ### H_2
+    # hyp = [1]   ### null hypothesis
+    # hyp_ = [2]  ### alternative hypothesis
+    ### H_3
+    # hyp = [-2]   ### null hypothesis
+    # hyp_ = [-1]  ### alternative hypothesis
+    # U = 416
+    # V = 416
+    # M_r = 300
+    # n_d = 2
+    # k = Hi_768(U, V, M_r, n_d, hyp, hyp_, True)
+
+    # main(hyp, hyp_, M_r, n_d)
+    cal_N_obs_min()
