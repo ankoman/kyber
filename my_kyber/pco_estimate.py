@@ -126,7 +126,7 @@ def Hi_768(U, V, M_r, n_d, hyp, hyp_, DEBUG=False):
         else:
             N_Hi_ = (target_llr - priori_odds_)/KL_Hi_
 
-    N = p_Hi * N_Hi + p_Hi_ * N_Hi_
+    N_Hi_ave = p_Hi * N_Hi + p_Hi_ * N_Hi_
 
     if DEBUG:
         print(alpha)
@@ -141,7 +141,7 @@ def Hi_768(U, V, M_r, n_d, hyp, hyp_, DEBUG=False):
         print(f'{KL_Hi=:f}, {KL_Hi_=:f}')
 
         print(N_Hi, N_Hi_, N)
-    return N_Hi, N_Hi_
+    return N_Hi_ave, N_Hi, N_Hi_
 
 def main(hyp, hyp_, M_r, n_d):
     print(f'M_r, n_d, U, V, k_Hi, k_Hi_')
@@ -155,7 +155,7 @@ def main(hyp, hyp_, M_r, n_d):
                 list_N_ = []
                 for U in list_U10:
                     for V in [0, 208, 416, 624, 832, 1040, 1248, 1456, 1665, 1873, 2081, 2289, 2497, 2705, 2913, 3121]:
-                        N_Hi, N_Hi_ = Hi_768(U, V, M_r, n_d, hyp, hyp_)
+                        N_Hi_ave, N_Hi, N_Hi_ = Hi_768(U, V, M_r, n_d, hyp, hyp_)
                         list_N.append(N_Hi)
                         list_N_.append(N_Hi_)
                         print(f'{M_r}, {n_d}, {U}, {V}, {N_Hi}, {N_Hi_}')
@@ -168,38 +168,46 @@ def main(hyp, hyp_, M_r, n_d):
     # print(list_min_k)
 
 def cal_N_Hi_min(M_r, n_d, hyp, hyp_):
+    list_N_ave = []
     list_N = []
     list_N_ = []
     for U in list_U10:
         for V in [0, 208, 416, 624, 832, 1040, 1248, 1456, 1665, 1873, 2081, 2289, 2497, 2705, 2913, 3121]:
-            N_Hi, N_Hi_ = Hi_768(U, V, M_r, n_d, hyp, hyp_)
-            list_N.append(N_Hi)
-            list_N_.append(N_Hi_)
-    return min(list_N), min(list_N_)
+            N_Hi_ave, N_Hi, N_Hi_ = Hi_768(U, V, M_r, n_d, hyp, hyp_)
+            list_N_ave.append((N_Hi_ave, U, V))
+            list_N.append((N_Hi, U, V))
+            list_N_.append((N_Hi_, U, V))
+    min_N_ave = min(list_N_ave, key=lambda x: x[0])
+    min_N = min(list_N, key=lambda x: x[0])
+    min_N_ = min(list_N_, key=lambda x: x[0])
+    # print(min_N_ave, min_N, min_N_)
+    return min_N_ave[0]
 
 def cal_N_obs_min():
-    for M_r in range(100,300):
+    for M_r in range(200,300):
         for i in range(1, M_r.bit_length()):
             n_d = 2**i
             if 2*M_r % n_d == 0:
                 hyp, hyp_ = [-2,-1,0], [1,2]  ### H_0 null hypothesis and alternative hypothesis
-                N_H0_min, N_H0_min_ = cal_N_Hi_min(M_r, n_d, hyp, hyp_)
+                N_H0_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_)
 
                 hyp, hyp_ = [-2,-1], [0]  ### H_1 null hypothesis and alternative hypothesis
-                N_H1_min, N_H1_min_ = cal_N_Hi_min(M_r, n_d, hyp, hyp_)
+                N_H1_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_)
 
                 hyp, hyp_ = [1], [2]  ### H_2 null hypothesis and alternative hypothesis
-                N_H2_min, N_H2_min_ = cal_N_Hi_min(M_r, n_d, hyp, hyp_)
+                N_H2_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_)
 
                 hyp, hyp_ = [-2], [-1]  ### H_3 null hypothesis and alternative hypothesis
-                N_H3_min, N_H3_min_ = cal_N_Hi_min(M_r, n_d, hyp, hyp_)
+                N_H3_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_)
 
-                N_obs_min = (
-                    (1/16)*(N_H0_min + N_H1_min + N_H3_min) + 
-                    (4/16)*(N_H0_min + N_H1_min + N_H3_min_) +
-                    (6/16)*(N_H0_min + N_H1_min_) +
-                    (4/16)*(N_H0_min_ + N_H2_min) +
-                    (1/16)*(N_H0_min_ + N_H2_min_))
+                # N_obs_min = (
+                #     (1/16)*(N_H0_min + N_H1_min + N_H3_min) + 
+                #     (4/16)*(N_H0_min + N_H1_min + N_H3_min_) +
+                #     (6/16)*(N_H0_min + N_H1_min_) +
+                #     (4/16)*(N_H0_min_ + N_H2_min) +
+                #     (1/16)*(N_H0_min_ + N_H2_min_))
+
+                N_obs_min = (N_H0_min + (11/16)*N_H1_min + (5/16)*N_H2_min + (5/16)*N_H3_min)
 
                 print(f'{M_r}, {n_d}, {N_obs_min}')
 
