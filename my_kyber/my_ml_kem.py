@@ -6,12 +6,12 @@ import copy
 #import sha3
 
 ### 512
-k = 2
-eta1 = 3
+# k = 2
+# eta1 = 3
 
 ### 768
-# k = 3
-# eta1 = 2
+k = 3
+eta1 = 2
 
 ### 1024
 # k = 4
@@ -531,10 +531,10 @@ class my_ML_KEM:
 
         w = v - intt_stu
         m = Rq.msgencode(w)
-        # print(m)
-        # print(hex(m))
-        # print(w)
-        # input()
+        print(m)
+        print(hex(m))
+        print(w)
+        input()
 
         return m.to_bytes(32, 'big')
 

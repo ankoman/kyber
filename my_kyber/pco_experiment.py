@@ -1,9 +1,11 @@
-import math, random
+import math, random, copy
 from tqdm import tqdm
 from scipy.stats import norm, entropy
 from decimal import *
 import numpy as np
-from my_ml_kem import *
+from test import test_ML_KEM, k, n, Rq, q
+
+ZEROS = (0).to_bytes(32, 'big')
 
 def decode(val):
     val = val % 3329
@@ -17,7 +19,7 @@ def get_without_i(lst, idx):
     copied.pop(idx)
     return copied
 
-def hyp_test(U, V, target_s, non_target_coeffs, M_r, n_d, hyp, hyp_, target_odds, mlkem):
+def hyp_test(inst, U, V, dk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_odds, mlkem):
     tau = 2*M_r//n_d
     list_i = list(range(-n_d//2, n_d//2+1))
 
@@ -69,19 +71,20 @@ def hyp_test(U, V, target_s, non_target_coeffs, M_r, n_d, hyp, hyp_, target_odds
     p_Hi_Y = p_Hi
     p_Hi__Y = p_Hi_
     n_query = 0
+
+    ### Make query
+    u = copy.deepcopy(mask_u)
+    v = copy.deepcopy(mask_v)
+    u[j].coeff[i] = (mask_u[j].coeff[i] + U) % q
+    c1 = Rq.polyvecCompEncode(u)
+    v.coeff[0] = (mask_v.coeff[0] + V) % q
     while True:        
         n_query += 1
-        ### Target coefficient effect
-        r = random.randint(-n_d//2, n_d//2)
-        DF_response = decode(V - target_s * U + r*tau)
+        ### query
+        res = inst.dec_invalidRandCoef(dk, c1 + v.polyCompEncode(), M_r, n_d)
 
-        ### Non-target coefficients effect
-        non_target_m = [decode(-elem * U + random.randint(-n_d//2, n_d//2)*tau) for elem in non_target_coeffs]
-        if 1 in non_target_m:
-            DF_response = True
-
-        ### Posteriori probabiliry update
-        if DF_response:
+        ### Posteriori probability update
+        if ZEROS != res:
             p_Hi_Y = (p_Y1_Hi * p_Hi_Y) / (p_Y1_Hi * p_Hi_Y + p_Y1_Hi_ * p_Hi__Y)   
             p_Hi__Y = (p_Y1_Hi_ * p_Hi__Y) / (p_Y1_Hi * p_Hi_Y + p_Y1_Hi_ * p_Hi__Y)
         else:
@@ -97,48 +100,61 @@ def hyp_test(U, V, target_s, non_target_coeffs, M_r, n_d, hyp, hyp_, target_odds
 
 
 def main():
-    #random.seed(0)
-    d = random.randint(0, 2**256-1).to_bytes(32, 'big')
-    inst = my_ML_KEM()
-    pk, sk = inst.cpa_keygen(d)
-    s = np.array([Rq.intt(Rq.decode(sk[384*i:])).coeff for i in range(k)])
-
+    ### parameters
+    PK_MASK = True
     M_r = 209
     n_d = 2
     target_odds = math.log2(0.99/0.01)
     print(f'Target odds: {target_odds}')
 
-    list_recovered_s = []
+    # Prepare keys and public key mask
+    random.seed(0)
+    row, pos, scalar, rot = 0, 0, 1, 0
+    d = random.randint(0, 2**256-1).to_bytes(32, 'big')
+    z = random.randint(0, 2**256-1).to_bytes(32, 'big')
+
+    inst = test_ML_KEM()
+    pk, sk = inst.cca_keygen(z, d)
+    dk = sk[:384*k]
+    s = np.array([Rq.intt(Rq.decode(dk[384*i:])).coeff for i in range(k)])
+
+    # Generate pk mask
+    mask_u, mask_v = [Rq() for i in range(k)], Rq()
+    if PK_MASK:
+        mask_u, mask_v = inst.get_pk_mask(sk, pos, row, scalar, rot)
+
+    random.seed()
+    list_recovered_s = [None] * n*k
     n_query = 0
     for j in tqdm(range(k)):
         for i in range(n):
-            target_s = s[j][i]
-            non_target_coeffs = get_without_i(s[j].tolist(), i)
             ### Null hypothesis: H0 vs. alternative hypothesis: H0_
-            t, response = hyp_test(211, 2497, target_s, non_target_coeffs, M_r, n_d, [-2,-1,0], [1,2], target_odds, 768)
+            t, response = hyp_test(inst, 211, 2497, dk, mask_u, mask_v, i, j, M_r, n_d, [-2,-1,0], [1,2], target_odds, 768)
             n_query += t
             if response:
                 ### Null hypothesis: H1 vs. alternative hypothesis: H1_
-                t, response = hyp_test(208, 416, target_s, non_target_coeffs, M_r, n_d, [-2,-1], [0], target_odds, 768)
+                t, response = hyp_test(inst, 208, 416, dk, mask_u, mask_v, i, j, M_r, n_d, [-2,-1], [0], target_odds, 768)
                 n_query += t
                 if response:
                     ### Null hypothesis: H3 vs. alternative hypothesis: H3_
-                    t, response = hyp_test(107, 832, target_s, non_target_coeffs, M_r, n_d, [-2], [-1], target_odds, 768)
+                    t, response = hyp_test(inst, 107, 832, dk, mask_u, mask_v, i, j, M_r, n_d, [-2], [-1], target_odds, 768)
                     n_query += t
                     if response:
-                        list_recovered_s.append(-2)
+                        recovered_s = -2
                     else:
-                        list_recovered_s.append(-1)
+                        recovered_s = -1
                 else:
-                    list_recovered_s.append(0)
+                    recovered_s = 0
             else:
                 ### Null hypothesis: H2 vs. alternative hypothesis: H2_
-                t, response = hyp_test(107, 2497, target_s, non_target_coeffs, M_r, n_d, [1], [2], target_odds, 768)
+                t, response = hyp_test(inst, 107, 2497, dk, mask_u, mask_v, i, j, M_r, n_d, [1], [2], target_odds, 768)
                 n_query += t
                 if response:
-                    list_recovered_s.append(1)
+                    recovered_s = 1
                 else:
-                    list_recovered_s.append(2)
+                    recovered_s = 2
+            
+            list_recovered_s[j*n + ((256-i) % 256)] = recovered_s if i == 0 else -recovered_s  ### Rajendra's method
 
     print(f'Required queries to achive the target odds for each coeffs: {n_query/(k*n)}')
 

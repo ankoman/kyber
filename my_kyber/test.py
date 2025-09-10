@@ -3,6 +3,27 @@ import numpy as np
 import random, copy, math
 
 class test_ML_KEM(my_ML_KEM):
+    
+    def dec_invalidRandCoef(self, dk: bytearray, c: bytearray, M_r, n_d) -> bytearray:
+        tau = 2*M_r//n_d
+        u = Rq.polyvecDecodeDecomp(c)
+        v = Rq.polyDecodeDecomp(c[32*du*k:])
+
+        ntt_s = [Rq.decode(dk[384*i:]) for i in range(k)] 
+        ntt_u = [Rq.ntt(u[i]) for i in range(k)]
+
+        # Vector-vector multiplication
+        stu = Rq()
+        for i in range(k):
+                stu = stu + (ntt_s[i] @ ntt_u[i])
+        intt_stu = Rq.intt(stu)
+
+        w = v - intt_stu
+        w.coeff = [elem + tau*random.randint(-n_d//2, n_d//2) for elem in w.coeff]  ### Add noise
+        m = Rq.msgencode(w)
+
+        return m.to_bytes(32, 'big')
+
     def cca_dec_out_mp(self, c: bytearray, sk: bytearray):
         dk = sk[:384*k]
         pk = sk[384*k:768*k+32]
