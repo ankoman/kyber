@@ -194,6 +194,7 @@ def cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem):
             list_N_ave.append((N_Hi_ave, U, V))
             list_N.append((N_Hi, U, V))
             list_N_.append((N_Hi_, U, V))
+            #print(f'{U}, {V}, {N_Hi_ave}')
     min_N_ave = min(list_N_ave, key=lambda x: x[0])
     min_N = min(list_N, key=lambda x: x[0])
     min_N_ = min(list_N_, key=lambda x: x[0])
@@ -202,7 +203,7 @@ def cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem):
 
 def cal_N_obs_min_768():
     mlkem = 768
-    for M_r in range(200,300):
+    for M_r in range(100,300):
         for i in range(1, M_r.bit_length()):
             n_d = 2**i
             if 2*M_r % n_d == 0:
@@ -231,7 +232,7 @@ def cal_N_obs_min_768():
 
 def cal_N_obs_min_512():
     mlkem = 512
-    for M_r in range(200,300):
+    for M_r in range(100,300):
         for i in range(1, M_r.bit_length()):
             n_d = 2**i
             if 2*M_r % n_d == 0:
@@ -260,7 +261,7 @@ def cal_N_obs_min_512():
 
 def cal_N_obs_min_1024():
     mlkem = 1024
-    for M_r in range(200,300):
+    for M_r in range(100,300):
         for i in range(1, M_r.bit_length()):
             n_d = 2**i
             if 2*M_r % n_d == 0:
@@ -282,8 +283,8 @@ def cal_N_obs_min_1024():
 
 if __name__ == '__main__':
     ### H_0
-    # hyp = [-2,-1,0]   ### null hypothesis
-    # hyp_ = [1,2]  ### alternative hypothesis
+    hyp = [-2,-1,0]   ### null hypothesis
+    hyp_ = [1,2]  ### alternative hypothesis
     ### H_1
     # hyp = [-2,-1]   ### null hypothesis
     # hyp_ = [0]  ### alternative hypothesis
@@ -297,7 +298,7 @@ if __name__ == '__main__':
     # V = 416
     # M_r = 300
     # n_d = 2
-    # k = Hi_768(U, V, M_r, n_d, hyp, hyp_, True)
+    k, _, _= gen_N_Hi(211, 2497, 209, 2, hyp, hyp_, 768, True)
 
     # main(hyp, hyp_, M_r, n_d)
-    cal_N_obs_min_1024()
+    #cal_N_obs_min_768()
