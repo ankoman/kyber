@@ -51,7 +51,7 @@ def expected_num_obs(p, expected_p):
     else:
         return float('inf') 
 
-def gen_N_Hi(U, V, M_r, n_d, hyp, hyp_, mlkem, DEBUG=False):
+def gen_N_Hi(U, V, M_r, n_d, hyp, hyp_, mlkem, DEBUG=False, PK_MASK=False):
     tau = 2*M_r//n_d
     list_i = list(range(-n_d//2, n_d//2+1))
 
@@ -60,8 +60,17 @@ def gen_N_Hi(U, V, M_r, n_d, hyp, hyp_, mlkem, DEBUG=False):
     prob_U = 1 / len(list_index)
     if mlkem == 512:
         p_priori = np.array([20/16, 15/64, 6/64, 1/64, 1/64, 6/64, 15/64])   ### -1 = 15/64, -2 = 6/64, -3 = 1/64
+        dv = 4
+        sigma = math.sqrt(236*2)
     else:
         p_priori = np.array([6/16, 4/16, 1/16, 1/16, 4/16])   ### -1 = 4/16, -2 = 1/16
+        if mlkem == 768:
+            dv = 4
+            sigma = math.sqrt(236*3)
+        elif mlkem == 1024:
+            dv = 5
+            sigma = math.sqrt(236*4)
+
     mask = np.zeros_like(p_priori)
     mask[hyp + hyp_] = p_priori[hyp + hyp_]
     p_priori = mask / sum(mask)
@@ -70,23 +79,50 @@ def gen_N_Hi(U, V, M_r, n_d, hyp, hyp_, mlkem, DEBUG=False):
 
     ### Probabilities
     p_X1_Hi = 0 ### Pr(X=1|H_i)
+    p_X1_Hi_ = 0 ### Pr(X=1|H_i_)
     p_Hi = sum(p_priori[i] for i in hyp)
-    for idx in list_index:
-        for s in hyp:
-            if decode(idx - s*U + V):
-                p_X1_Hi += prob_U * p_priori[s] / p_Hi
+    p_Hi_ = sum(p_priori[i] for i in hyp_)
+
+    if PK_MASK:
+        for idx in list_index:
+            for s in hyp:
+                ### Exact case
+                # for j in range(-3328//2**(dv+1), 3328//2**(dv+1)):
+                #     p_X1_Hi += 1 - norm.cdf(832, idx - s*U + V + j, sigma)
+                #     p_X1_Hi += norm.cdf(-832, idx - s*U + V + j, sigma)
+                #p_X1_Hi *= 2**dv
+                #p_X1_Hi /= (3328 + 2**dv)
+                ### Approximate case
+                p_X1_Hi += (1 - norm.cdf(832, idx - s*U + V, 65.5)) * (p_priori[s] / p_Hi)
+                p_X1_Hi += norm.cdf(-832, idx - s*U + V, 65.5) * (p_priori[s] / p_Hi)
+        p_X1_Hi *= prob_U 
+        for idx in list_index:
+            for s in hyp_:
+                ### Exact case
+                # for j in range(-3328//2**(dv+1), 3328//2**(dv+1)):
+                #     p_X1_Hi_ += 1 - norm.cdf(832, idx - s*U + V + j, sigma)
+                #     p_X1_Hi_ += norm.cdf(-832, idx - s*U + V + j, sigma)
+                #p_X1_Hi_ *= 2**dv
+                #p_X1_Hi_ /= (3328 + 2**dv)
+                ### Approximate case
+                p_X1_Hi_ += (1 - norm.cdf(832, idx - s*U + V, 65.5)) * (p_priori[s] / p_Hi_)
+                p_X1_Hi_ += norm.cdf(-832, idx - s*U + V, 65.5) * (p_priori[s] / p_Hi_)
+        p_X1_Hi_ *= prob_U 
+    else:
+        for idx in list_index:
+            for s in hyp:
+                if decode(idx - s*U + V):
+                    p_X1_Hi += prob_U * p_priori[s] / p_Hi
+
+        for idx in list_index:
+            for s in hyp_:
+                if decode(idx - s*U + V):
+                    p_X1_Hi_ += prob_U * p_priori[s] / p_Hi_
     if p_X1_Hi > 1:
         p_X1_Hi = 1
-    p_X0_Hi = 1 - p_X1_Hi ### Pr(X=0|H_i)
-
-    p_X1_Hi_ = 0 ### Pr(X=1|H_i_)
-    p_Hi_ = sum(p_priori[i] for i in hyp_)
-    for idx in list_index:
-        for s in hyp_:
-            if decode(idx - s*U + V):
-                p_X1_Hi_ += prob_U * p_priori[s] / p_Hi_
     if p_X1_Hi_ > 1:
         p_X1_Hi_ = 1
+    p_X0_Hi = 1 - p_X1_Hi ### Pr(X=0|H_i)
     p_X0_Hi_ = 1 - p_X1_Hi_ ### Pr(X=0|H_i_)
 
     beta = 0
@@ -95,8 +131,13 @@ def gen_N_Hi(U, V, M_r, n_d, hyp, hyp_, mlkem, DEBUG=False):
     else:
         e1_max = 2
     for idx in list_index:
-        if decode(idx + e1_max*U):
-            beta += prob_U
+        if PK_MASK:
+            ### Approximate case
+            beta += (1 - norm.cdf(832, idx + e1_max*U, 65.5)) + norm.cdf(-832, idx + e1_max*U, 65.5)
+            beta *= prob_U
+        else:
+            if decode(idx + e1_max*U):
+                beta += prob_U
     alpha = 1 - (1 - beta)**32 ###  Pr(Y=1)
 
     p_X0 = p_X0_Hi*p_Hi + p_X0_Hi_*p_Hi_ ### Pr(X=0)
@@ -141,10 +182,10 @@ def gen_N_Hi(U, V, M_r, n_d, hyp, hyp_, mlkem, DEBUG=False):
     if DEBUG:
         print(alpha)
         print(p_X0)
-        print(p_X1_Hi)
-        print(p_X1_Hi_)
-        print(p_Y1_Hi)
-        print(p_Y1_Hi_)
+        print(f'{p_X1_Hi=}')
+        print(f'{p_X1_Hi_=}')
+        print(f'{p_Y1_Hi=}')
+        print(f'{p_Y1_Hi_=}')
 
         print(f'Traget LLR: {target_llr}')
         print(f'{priori_odds=:f}, {priori_odds_=:f}')
@@ -177,7 +218,7 @@ def main(hyp, hyp_, M_r, n_d):
 
     # print(list_min_k)
 
-def cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem):
+def cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem, debug, pkmask):
     list_N_ave = []
     list_N = []
     list_N_ = []
@@ -190,34 +231,35 @@ def cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem):
 
     for U in list_U:
         for V in list_V:
-            N_Hi_ave, N_Hi, N_Hi_ = gen_N_Hi(U, V, M_r, n_d, hyp, hyp_, mlkem)
+            N_Hi_ave, N_Hi, N_Hi_ = gen_N_Hi(U, V, M_r, n_d, hyp, hyp_, mlkem, debug, pkmask)
             list_N_ave.append((N_Hi_ave, U, V))
             list_N.append((N_Hi, U, V))
             list_N_.append((N_Hi_, U, V))
             #print(f'{U}, {V}, {N_Hi_ave}')
+            #input()
     min_N_ave = min(list_N_ave, key=lambda x: x[0])
     min_N = min(list_N, key=lambda x: x[0])
     min_N_ = min(list_N_, key=lambda x: x[0])
     # print(min_N_ave, min_N, min_N_)
     return min_N_ave[0]
 
-def cal_N_obs_min_768():
+def cal_N_obs_min_768(pkmask):
     mlkem = 768
-    for M_r in range(100,300):
+    for M_r in range(1,400):
         for i in range(1, M_r.bit_length()):
             n_d = 2**i
             if 2*M_r % n_d == 0:
                 hyp, hyp_ = [-2,-1,0], [1,2]  ### H_0 null hypothesis and alternative hypothesis
-                N_H0_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem)
+                N_H0_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem, False, pkmask)
 
                 hyp, hyp_ = [-2,-1], [0]  ### H_1 null hypothesis and alternative hypothesis
-                N_H1_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem)
+                N_H1_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem, False, pkmask)
 
                 hyp, hyp_ = [1], [2]  ### H_2 null hypothesis and alternative hypothesis
-                N_H2_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem)
+                N_H2_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem, False, pkmask)
 
                 hyp, hyp_ = [-2], [-1]  ### H_3 null hypothesis and alternative hypothesis
-                N_H3_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem)
+                N_H3_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem, False, pkmask)
 
                 # N_obs_min = (
                 #     (1/16)*(N_H0_min + N_H1_min + N_H3_min) + 
@@ -230,52 +272,52 @@ def cal_N_obs_min_768():
 
                 print(f'{M_r}, {n_d}, {N_obs_min}')
 
-def cal_N_obs_min_512():
+def cal_N_obs_min_512(pkmask):
     mlkem = 512
-    for M_r in range(100,300):
+    for M_r in range(1,400):
         for i in range(1, M_r.bit_length()):
             n_d = 2**i
             if 2*M_r % n_d == 0:
                 hyp, hyp_ = [-3,-2,-1,0], [1,2,3]  ### H_0 null hypothesis and alternative hypothesis
-                N_H0_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem)
+                N_H0_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem, False, pkmask)
 
                 hyp, hyp_ = [-3,-2,-1], [0]  ### H_1 null hypothesis and alternative hypothesis
-                N_H1_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem)
+                N_H1_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem, False, pkmask)
 
                 hyp, hyp_ = [1], [2,3]  ### H_2 null hypothesis and alternative hypothesis
-                N_H2_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem)
+                N_H2_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem, False, pkmask)
 
                 hyp, hyp_ = [-3,-2], [-1]  ### H_3 null hypothesis and alternative hypothesis
-                N_H3_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem)
+                N_H3_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem, False, pkmask)
 
                 hyp, hyp_ = [2], [3]  ### H_4 null hypothesis and alternative hypothesis
-                N_H4_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem)
+                N_H4_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem, False, pkmask)
 
                 hyp, hyp_ = [-3], [-2]  ### H_5 null hypothesis and alternative hypothesis
-                N_H5_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem)
+                N_H5_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem, False, pkmask)
 
                 N_obs_min = (N_H0_min + (42/64)*N_H1_min + (22/64)*N_H2_min + (22/64)*N_H3_min
                              + (7/64)*N_H4_min + (7/64)*N_H5_min)
 
                 print(f'{M_r}, {n_d}, {N_obs_min}')
 
-def cal_N_obs_min_1024():
+def cal_N_obs_min_1024(pkmask):
     mlkem = 1024
-    for M_r in range(100,300):
+    for M_r in range(1,400):
         for i in range(1, M_r.bit_length()):
             n_d = 2**i
             if 2*M_r % n_d == 0:
                 hyp, hyp_ = [-2,-1,0], [1,2]  ### H_0 null hypothesis and alternative hypothesis
-                N_H0_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem)
+                N_H0_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem, False, pkmask)
 
                 hyp, hyp_ = [-2,-1], [0]  ### H_1 null hypothesis and alternative hypothesis
-                N_H1_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem)
+                N_H1_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem, False, pkmask)
 
                 hyp, hyp_ = [1], [2]  ### H_2 null hypothesis and alternative hypothesis
-                N_H2_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem)
+                N_H2_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem, False, pkmask)
 
                 hyp, hyp_ = [-2], [-1]  ### H_3 null hypothesis and alternative hypothesis
-                N_H3_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem)
+                N_H3_min = cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem, False, pkmask)
 
                 N_obs_min = (N_H0_min + (11/16)*N_H1_min + (5/16)*N_H2_min + (5/16)*N_H3_min)
 
@@ -298,7 +340,7 @@ if __name__ == '__main__':
     # V = 416
     # M_r = 300
     # n_d = 2
-    k, _, _= gen_N_Hi(211, 2497, 209, 2, hyp, hyp_, 768, True)
+    # k, _, _= gen_N_Hi(211, 2497, 209, 2, hyp, hyp_, 768, True)
 
     # main(hyp, hyp_, M_r, n_d)
-    #cal_N_obs_min_768()
+    cal_N_obs_min_768(True)
