@@ -19,7 +19,7 @@ def get_without_i(lst, idx):
     copied.pop(idx)
     return copied
 
-def hyp_test(inst, U, V, dk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_odds, mlkem, PK_MASK, method):
+def hyp_test(inst, U, V, sk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_odds, mlkem, MODEL_PK_MASK, method, RAND_PKM):
     tau = 2*M_r//n_d
     list_i = list(range(-n_d//2, n_d//2+1))
 
@@ -48,7 +48,7 @@ def hyp_test(inst, U, V, dk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_o
     p_Hi = sum(p_priori[i] for i in hyp)
     p_Hi_ = sum(p_priori[i] for i in hyp_)
 
-    if PK_MASK:
+    if MODEL_PK_MASK:
         for idx in list_index:
             for s in hyp:
                 ### Exact case
@@ -96,7 +96,7 @@ def hyp_test(inst, U, V, dk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_o
     else:
         e1_max = 2
     for idx in list_index:
-        if PK_MASK:
+        if MODEL_PK_MASK:
             ### Approximate case
             theta += (1 - norm.cdf(832, idx + e1_max*U, 65.5)) + norm.cdf(-832, idx + e1_max*U, 65.5)
             theta *= prob_U
@@ -128,6 +128,20 @@ def hyp_test(inst, U, V, dk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_o
 
     ###Query the oracle until the likelihood ratio reaches the target odds
     while True:
+        if RAND_PKM:
+            ### Make public key mask random for all query
+            mask_u, mask_v = inst.get_pk_mask(sk, 0, random.randint(0,2), 1, random.randint(0.511))
+            u = copy.deepcopy(mask_u)
+            v = copy.deepcopy(mask_v)
+            if method == 'Rajendran':
+                u[j].coeff[i] = (mask_u[j].coeff[i] + U) % q
+                c1 = Rq.polyvecCompEncode(u)
+                v.coeff[0] = (mask_v.coeff[0] + V) % q
+            elif method == 'Tanaka':
+                u[j].coeff[0] = (mask_u[j].coeff[0] + U) % q
+                c1 = Rq.polyvecCompEncode(u)
+                v.coeff[i] = (mask_v.coeff[i] + V) % q
+
         n_query += 1
         res = inst.dec_invalidRandCoef(dk, c1 + v.polyCompEncode(), M_r, n_d)
 
@@ -149,7 +163,9 @@ def hyp_test(inst, U, V, dk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_o
 
 def main():
     ### parameters
-    PK_MASK = True
+    USE_PK_MASK = True
+    MODEL_PK_MASK = True
+    RAND_PKM = True
     M_r = 209
     n_d = 2
     mlkem = 768
@@ -171,7 +187,7 @@ def main():
 
     # Generate pk mask
     mask_u, mask_v = [Rq() for i in range(k)], Rq()
-    if PK_MASK:
+    if USE_PK_MASK:
         mask_u, mask_v = inst.get_pk_mask(sk, pos, row, scalar, rot)
 
     random.seed()
@@ -180,18 +196,18 @@ def main():
     for j in tqdm(range(k)):
         for i in range(n):
             ### Null hypothesis: H0 vs. alternative hypothesis: H0_
-            U0, V0 = (221, 832) if PK_MASK else (211, 2497)
-            t, response = hyp_test(inst, U0, V0, dk, mask_u, mask_v, i, j, M_r, n_d, [-2,-1,0], [1,2], target_odds, mlkem, PK_MASK, method)
+            U0, V0 = (221, 832) if MODEL_PK_MASK else (211, 2497)
+            t, response = hyp_test(inst, U0, V0, sk, mask_u, mask_v, i, j, M_r, n_d, [-2,-1,0], [1,2], target_odds, mlkem, MODEL_PK_MASK, method, RAND_PKM)
             n_query += t
             if response:
                 ### Null hypothesis: H1 vs. alternative hypothesis: H1_
-                U1, V1 = (234, 832) if PK_MASK else (208, 416)
-                t, response = hyp_test(inst, U1, V1, dk, mask_u, mask_v, i, j, M_r, n_d, [-2,-1], [0], target_odds, mlkem, PK_MASK, method)
+                U1, V1 = (234, 832) if MODEL_PK_MASK else (208, 416)
+                t, response = hyp_test(inst, U1, V1, sk, mask_u, mask_v, i, j, M_r, n_d, [-2,-1], [0], target_odds, mlkem, MODEL_PK_MASK, method, RAND_PKM)
                 n_query += t
                 if response:
                     ### Null hypothesis: H3 vs. alternative hypothesis: H3_
-                    U3, V3 = (179, 832) if PK_MASK else (107, 832)
-                    t, response = hyp_test(inst, U3, V3, dk, mask_u, mask_v, i, j, M_r, n_d, [-2], [-1], target_odds, mlkem, PK_MASK, method)
+                    U3, V3 = (179, 832) if MODEL_PK_MASK else (107, 832)
+                    t, response = hyp_test(inst, U3, V3, sk, mask_u, mask_v, i, j, M_r, n_d, [-2], [-1], target_odds, mlkem, MODEL_PK_MASK, method, RAND_PKM)
                     n_query += t
                     if response:
                         recovered_s = -2
@@ -201,8 +217,8 @@ def main():
                     recovered_s = 0
             else:
                 ### Null hypothesis: H2 vs. alternative hypothesis: H2_
-                U2, V2 = (185, 832) if PK_MASK else (107, 2497)
-                t, response = hyp_test(inst, U2, V2, dk, mask_u, mask_v, i, j, M_r, n_d, [1], [2], target_odds, mlkem, PK_MASK, method)
+                U2, V2 = (185, 832) if MODEL_PK_MASK else (107, 2497)
+                t, response = hyp_test(inst, U2, V2, sk, mask_u, mask_v, i, j, M_r, n_d, [1], [2], target_odds, mlkem, MODEL_PK_MASK, method, RAND_PKM)
                 n_query += t
                 if response:
                     recovered_s = 1
