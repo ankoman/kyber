@@ -19,7 +19,7 @@ def get_without_i(lst, idx):
     copied.pop(idx)
     return copied
 
-def hyp_test(inst, U, V, dk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_odds, mlkem, PK_MASK=False, method):
+def hyp_test(inst, U, V, dk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_odds, mlkem, PK_MASK, method):
     tau = 2*M_r//n_d
     list_i = list(range(-n_d//2, n_d//2+1))
 
@@ -90,7 +90,7 @@ def hyp_test(inst, U, V, dk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_o
     p_X0_Hi = 1 - p_X1_Hi ### Pr(X=0|H_i)
     p_X0_Hi_ = 1 - p_X1_Hi_ ### Pr(X=0|H_i_)
 
-    beta = 0
+    theta = 0
     if mlkem == 512:
         e1_max = 3
     else:
@@ -98,15 +98,15 @@ def hyp_test(inst, U, V, dk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_o
     for idx in list_index:
         if PK_MASK:
             ### Approximate case
-            beta += (1 - norm.cdf(832, idx + e1_max*U, 65.5)) + norm.cdf(-832, idx + e1_max*U, 65.5)
-            beta *= prob_U
+            theta += (1 - norm.cdf(832, idx + e1_max*U, 65.5)) + norm.cdf(-832, idx + e1_max*U, 65.5)
+            theta *= prob_U
         else:
             if decode(idx + e1_max*U):
-                beta += prob_U
-    alpha = 1 - (1 - beta)**32 ###  Pr(Y=1)
+                theta += prob_U
+    pi = 1 - (1 - theta)**32 ###  Pr(Y=1)
 
-    p_Y1_Hi = alpha + (1-alpha)*p_X1_Hi ### Pr(Y=1|H_i)
-    p_Y1_Hi_ = alpha + (1-alpha)*p_X1_Hi_ ### Pr(Y=1|H_i_)
+    p_Y1_Hi = pi + (1-pi)*p_X1_Hi ### Pr(Y=1|H_i)
+    p_Y1_Hi_ = pi + (1-pi)*p_X1_Hi_ ### Pr(Y=1|H_i_)
     p_Y0_Hi = 1 - p_Y1_Hi
     p_Y0_Hi_ = 1 - p_Y1_Hi_
 
@@ -154,7 +154,8 @@ def main():
     n_d = 2
     mlkem = 768
     method = 'Rajendran'  # 'Rajendran' or 'Tanaka'
-    target_odds = math.log2(0.99/0.01)
+    p_correct = 0.99
+    target_odds = math.log2(p_correct/(1-p_correct))
     print(f'Target odds: {target_odds}')
 
     # Prepare keys and public key mask
@@ -201,7 +202,7 @@ def main():
             else:
                 ### Null hypothesis: H2 vs. alternative hypothesis: H2_
                 U2, V2 = (185, 832) if PK_MASK else (107, 2497)
-                t, response = hyp_test(inst, 185, 832, dk, mask_u, mask_v, i, j, M_r, n_d, [1], [2], target_odds, mlkem, PK_MASK, method)
+                t, response = hyp_test(inst, U2, V2, dk, mask_u, mask_v, i, j, M_r, n_d, [1], [2], target_odds, mlkem, PK_MASK, method)
                 n_query += t
                 if response:
                     recovered_s = 1
