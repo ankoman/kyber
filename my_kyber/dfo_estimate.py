@@ -26,39 +26,43 @@ def false_positive():
     print(prob)
 
 if __name__ == '__main__':
-    false_positive()
+    #false_positive()
 
     sigma = 51
-    M_r = 256
-    n_d = 32
-    tau = 2*M_r//n_d
-    list_i = list(range(-n_d//2, n_d//2+1))
-    d = max(list_i)
-    list_G = []
+    M_r = 25
+    n_d = 2
 
-    for b in range(104):
-        omega = 832 + b
+    for M_r in [100]:
+        tau = 2*M_r//n_d
+        list_i = list(range(-n_d//2, n_d//2+1))
+        d = max(list_i)
+        list_G = []
+        for b in range(104):
+            omega = 832 + b
 
-        pX0 = norm.cdf(832, omega, sigma)
-        pX1 = 1 - pX0
-        
-        pY0 = 0
-        p11 = 0
-        for i in list_i:
-            pY0 += norm.cdf(832, i*tau+omega, sigma)
-            p11 += clip(1 - norm.cdf(832, i*tau + omega, sigma), pX1)
+            pX0 = norm.cdf(832, omega, sigma)   
+            pX1 = 1 - pX0
+            
+            pY0 = 0
+            p11 = 0
+            for i in list_i:
+                pY0 += norm.cdf(832, i*tau+omega, sigma)
+                p11 += clip(1 - norm.cdf(832, i*tau + omega, sigma), pX1)
 
-        pY0 /= (n_d + 1)
-        pY1 = 1 - pY0
-        p11 /= (n_d + 1)
-        pY1X0 = (pY1 - p11) / pX0
-        pY1X1 = p11/pX1
+            pY0 /= (n_d + 1)
+            pY1 = 1 - pY0
+            p11 /= (n_d + 1)
+            pY1X0 = (pY1 - p11) / pX0
+            pY1X1 = p11/pX1
 
-        H_YX = pX0*h2(pY1X0) + pX1*h2(pY1X1)
-        H_Y = h2(pY0)
-        C = H_Y - H_YX
-        G = 1/C
-        list_G.append(G)
+            H_YX = pX0*h2(pY1X0) + pX1*h2(pY1X1)
+            H_Y = h2(pY0)
+            C = H_Y - H_YX
+            G = 1/C
+            pe =2*pX0*pY1X0
+            list_G.append(G)
 
-        print(f'{b}: {H_YX=}, {H_Y=}, {C=}, {G=}')
-    print(f'min G: {min(list_G)}')
+            #print(f'{b}: {H_YX=}, {H_Y=}, {C=}, {G=}')
+            print(f'{G:02.3f}, {1-pe}')
+        print('')
+    #print(f'min G: {min(list_G)}')
