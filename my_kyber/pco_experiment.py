@@ -130,7 +130,7 @@ def hyp_test(inst, U, V, sk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_o
     while True:
         if RAND_PKM:
             ### Make public key mask random for all query
-            mask_u, mask_v = inst.get_pk_mask(sk, 0, random.randint(0,2), 1, random.randint(0.511))
+            mask_u, mask_v = inst.get_pk_mask(sk, 0, random.randint(0,2), 1, random.randint(0,511))
             u = copy.deepcopy(mask_u)
             v = copy.deepcopy(mask_v)
             if method == 'Rajendran':
@@ -143,7 +143,7 @@ def hyp_test(inst, U, V, sk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_o
                 v.coeff[i] = (mask_v.coeff[i] + V) % q
 
         n_query += 1
-        res = inst.dec_invalidRandCoef(dk, c1 + v.polyCompEncode(), M_r, n_d)
+        res = inst.dec_invalidRandCoef(sk[:384*k], c1 + v.polyCompEncode(), M_r, n_d)
 
         ### Posteriori probability update
         if ZEROS != res:
