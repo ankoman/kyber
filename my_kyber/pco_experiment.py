@@ -19,7 +19,7 @@ def get_without_i(lst, idx):
     copied.pop(idx)
     return copied
 
-def hyp_test(inst, U, V, dk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_odds, mlkem, PK_MASK=False):
+def hyp_test(inst, U, V, dk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_odds, mlkem, PK_MASK=False, method):
     tau = 2*M_r//n_d
     list_i = list(range(-n_d//2, n_d//2+1))
 
@@ -114,15 +114,21 @@ def hyp_test(inst, U, V, dk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_o
     p_Hi__Y = p_Hi_
     n_query = 0
 
-    ### Make query
+    ### Make a ciphertext query
     u = copy.deepcopy(mask_u)
     v = copy.deepcopy(mask_v)
-    u[j].coeff[i] = (mask_u[j].coeff[i] + U) % q
-    c1 = Rq.polyvecCompEncode(u)
-    v.coeff[0] = (mask_v.coeff[0] + V) % q
-    while True:        
+    if method == 'Rajendran':
+        u[j].coeff[i] = (mask_u[j].coeff[i] + U) % q
+        c1 = Rq.polyvecCompEncode(u)
+        v.coeff[0] = (mask_v.coeff[0] + V) % q
+    elif method == 'Tanaka':
+        u[j].coeff[0] = (mask_u[j].coeff[0] + U) % q
+        c1 = Rq.polyvecCompEncode(u)
+        v.coeff[i] = (mask_v.coeff[i] + V) % q
+
+    ###Query the oracle until the likelihood ratio reaches the target odds
+    while True:
         n_query += 1
-        ### query
         res = inst.dec_invalidRandCoef(dk, c1 + v.polyCompEncode(), M_r, n_d)
 
         ### Posteriori probability update
@@ -146,6 +152,8 @@ def main():
     PK_MASK = True
     M_r = 209
     n_d = 2
+    mlkem = 768
+    method = 'Rajendran'  # 'Rajendran' or 'Tanaka'
     target_odds = math.log2(0.99/0.01)
     print(f'Target odds: {target_odds}')
 
@@ -171,15 +179,18 @@ def main():
     for j in tqdm(range(k)):
         for i in range(n):
             ### Null hypothesis: H0 vs. alternative hypothesis: H0_
-            t, response = hyp_test(inst, 211, 2497, dk, mask_u, mask_v, i, j, M_r, n_d, [-2,-1,0], [1,2], target_odds, 768, PK_MASK)
+            U0, V0 = (221, 832) if PK_MASK else (211, 2497)
+            t, response = hyp_test(inst, U0, V0, dk, mask_u, mask_v, i, j, M_r, n_d, [-2,-1,0], [1,2], target_odds, mlkem, PK_MASK, method)
             n_query += t
             if response:
                 ### Null hypothesis: H1 vs. alternative hypothesis: H1_
-                t, response = hyp_test(inst, 208, 416, dk, mask_u, mask_v, i, j, M_r, n_d, [-2,-1], [0], target_odds, 768, PK_MASK)
+                U1, V1 = (234, 832) if PK_MASK else (208, 416)
+                t, response = hyp_test(inst, U1, V1, dk, mask_u, mask_v, i, j, M_r, n_d, [-2,-1], [0], target_odds, mlkem, PK_MASK, method)
                 n_query += t
                 if response:
                     ### Null hypothesis: H3 vs. alternative hypothesis: H3_
-                    t, response = hyp_test(inst, 107, 832, dk, mask_u, mask_v, i, j, M_r, n_d, [-2], [-1], target_odds, 768, PK_MASK)
+                    U3, V3 = (179, 832) if PK_MASK else (107, 832)
+                    t, response = hyp_test(inst, U3, V3, dk, mask_u, mask_v, i, j, M_r, n_d, [-2], [-1], target_odds, mlkem, PK_MASK, method)
                     n_query += t
                     if response:
                         recovered_s = -2
@@ -189,14 +200,17 @@ def main():
                     recovered_s = 0
             else:
                 ### Null hypothesis: H2 vs. alternative hypothesis: H2_
-                t, response = hyp_test(inst, 107, 2497, dk, mask_u, mask_v, i, j, M_r, n_d, [1], [2], target_odds, 768, PK_MASK)
+                U2, V2 = (185, 832) if PK_MASK else (107, 2497)
+                t, response = hyp_test(inst, 185, 832, dk, mask_u, mask_v, i, j, M_r, n_d, [1], [2], target_odds, mlkem, PK_MASK, method)
                 n_query += t
                 if response:
                     recovered_s = 1
                 else:
                     recovered_s = 2
-            
-            list_recovered_s[j*n + ((256-i) % 256)] = recovered_s if i == 0 else -recovered_s  ### Rajendra's method
+            if method == 'Rajendran':
+                list_recovered_s[j*n + ((256-i) % 256)] = recovered_s if i == 0 else -recovered_s  ### Rajendra's method
+            elif method == 'Tanaka':
+                list_recovered_s[j*n + i] = recovered_s
 
     print(f'Required queries to achive the target odds for each coeffs: {n_query/(k*n)}')
 
@@ -208,4 +222,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    for i in range(100):
+        main()
