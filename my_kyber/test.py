@@ -120,11 +120,17 @@ def decomp(val: int):
 def approx(val: int):
     return decomp(comp(val))
 
-def xtimes(poly: Rq, p: int):
+def xtimes(poly: Rq, p: int, inv=False):
     for i in range(p):
-        coeff = poly.coeff.pop(0)
-        coeff = coeff * -1
-        poly.coeff.append(coeff if coeff > 0 else coeff + q)
+        if inv:
+            coeff = poly.coeff.pop() 
+            coeff = coeff * -1
+            poly.coeff.insert(0, coeff if coeff > 0 else coeff + q)
+        else:
+            coeff = poly.coeff.pop(0)
+            coeff = coeff * -1
+            poly.coeff.append(coeff if coeff > 0 else coeff + q)
+
 
 def xtimes_approx(poly: Rq, p: int):
     for i in range(p):
