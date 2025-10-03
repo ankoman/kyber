@@ -2,6 +2,8 @@ import math
 from scipy.stats import norm, entropy
 from decimal import *
 import numpy as np
+from tqdm import tqdm
+
 
 list_U10 = [3,7,10,13,16,20,23,26,29,33,36,39,42,46,49,52,55,59,62,65,68,72,75,78,81,85,88,91,94,98,101,104,107,111,114,117,120,124,127,130,133,137,140,143,146,150,153,156,159,163,166,169,172,176,179,182,185,189,192,195,198,202,205,208,211,215,218,221,224,228,231,234,237,241,244,247,250,254,257,260,263,267,270,273,276,280,283,286,289,293,296,299,302,306,309,312,315,319,322,325,328,332,335,338,341,345,348,351,354,358,361,364,367,371,374,377,380,384,387,390,393,397,400,403,406,410,413,416]
 list_V4 = [0, 208, 416, 624, 832, 1040, 1248, 1456, 1665, 1873, 2081, 2289, 2497, 2705, 2913, 3121]
@@ -51,7 +53,22 @@ def expected_num_obs(p, expected_p):
     else:
         return float('inf') 
 
-def gen_N_Hi(U, V, M_r, n_d, hyp, hyp_, mlkem, DEBUG=False, PK_MASK=False):
+def cdf_pkm(U, V, s, idx, dv, sigma, APPROX):
+    p = 0
+    if APPROX:
+        ### Approximate case
+        p += (1 - norm.cdf(832, idx - s*U + V, 65.5))
+        p += norm.cdf(-832, idx - s*U + V, 65.5)
+    else:
+        ### Exact case
+        j_vals = np.arange(-3328//2**(dv+1), 3328//2**(dv+1))
+        locs = idx - s*U + V + j_vals
+        cdf_hi = (1 - norm.cdf(832, locs, sigma)) 
+        cdf_lo = norm.cdf(-832, locs, sigma) 
+        p = (cdf_hi + cdf_lo).sum() * (2**dv) / (3328 + 2**dv)
+    return p
+
+def gen_N_Hi(U, V, M_r, n_d, hyp, hyp_, mlkem, DEBUG=False, PK_MASK=False, APPROX=False):
     tau = 2*M_r//n_d
     list_i = list(range(-n_d//2, n_d//2+1))
 
@@ -86,27 +103,11 @@ def gen_N_Hi(U, V, M_r, n_d, hyp, hyp_, mlkem, DEBUG=False, PK_MASK=False):
     if PK_MASK:
         for idx in list_index:
             for s in hyp:
-                ### Exact case
-                # for j in range(-3328//2**(dv+1), 3328//2**(dv+1)):
-                #     p_X1_Hi += 1 - norm.cdf(832, idx - s*U + V + j, sigma)
-                #     p_X1_Hi += norm.cdf(-832, idx - s*U + V + j, sigma)
-                #p_X1_Hi *= 2**dv
-                #p_X1_Hi /= (3328 + 2**dv)
-                ### Approximate case
-                p_X1_Hi += (1 - norm.cdf(832, idx - s*U + V, 65.5)) * (p_priori[s] / p_Hi)
-                p_X1_Hi += norm.cdf(-832, idx - s*U + V, 65.5) * (p_priori[s] / p_Hi)
+                p_X1_Hi += cdf_pkm(U, V, s, idx, dv, sigma, APPROX) * (p_priori[s] / p_Hi)
         p_X1_Hi *= prob_U 
         for idx in list_index:
             for s in hyp_:
-                ### Exact case
-                # for j in range(-3328//2**(dv+1), 3328//2**(dv+1)):
-                #     p_X1_Hi_ += 1 - norm.cdf(832, idx - s*U + V + j, sigma)
-                #     p_X1_Hi_ += norm.cdf(-832, idx - s*U + V + j, sigma)
-                #p_X1_Hi_ *= 2**dv
-                #p_X1_Hi_ /= (3328 + 2**dv)
-                ### Approximate case
-                p_X1_Hi_ += (1 - norm.cdf(832, idx - s*U + V, 65.5)) * (p_priori[s] / p_Hi_)
-                p_X1_Hi_ += norm.cdf(-832, idx - s*U + V, 65.5) * (p_priori[s] / p_Hi_)
+                p_X1_Hi_ += cdf_pkm(U, V, s, idx, dv, sigma, APPROX) * (p_priori[s] / p_Hi_)
         p_X1_Hi_ *= prob_U 
     else:
         for idx in list_index:
@@ -125,24 +126,22 @@ def gen_N_Hi(U, V, M_r, n_d, hyp, hyp_, mlkem, DEBUG=False, PK_MASK=False):
     p_X0_Hi = 1 - p_X1_Hi ### Pr(X=0|H_i)
     p_X0_Hi_ = 1 - p_X1_Hi_ ### Pr(X=0|H_i_)
 
-    beta = 0
+    theta = 0
     if mlkem == 512:
         e1_max = 3
     else:
         e1_max = 2
     for idx in list_index:
         if PK_MASK:
-            ### Approximate case
-            beta += (1 - norm.cdf(832, idx + e1_max*U, 65.5)) + norm.cdf(-832, idx + e1_max*U, 65.5)
-            beta *= prob_U
+            theta += cdf_pkm(U, 0, -e1_max, idx, dv, sigma, APPROX) * prob_U
         else:
             if decode(idx + e1_max*U):
-                beta += prob_U
-    alpha = 1 - (1 - beta)**32 ###  Pr(Y=1)
+                theta += prob_U
+    pi = 1 - (1 - theta)**32 ###  Pr(Y=1)
 
     p_X0 = p_X0_Hi*p_Hi + p_X0_Hi_*p_Hi_ ### Pr(X=0)
-    p_Y1_Hi = alpha + (1-alpha)*p_X1_Hi ### Pr(Y=1|H_i)
-    p_Y1_Hi_ = alpha + (1-alpha)*p_X1_Hi_ ### Pr(Y=1|H_i_)
+    p_Y1_Hi = pi + (1-pi)*p_X1_Hi ### Pr(Y=1|H_i)
+    p_Y1_Hi_ = pi + (1-pi)*p_X1_Hi_ ### Pr(Y=1|H_i_)
 
     ### KL Divergence
     KL_Hi = entropy([p_Y1_Hi, 1 - p_Y1_Hi], [p_Y1_Hi_, 1 - p_Y1_Hi_], base=2)
@@ -235,17 +234,18 @@ def cal_N_Hi_min(M_r, n_d, hyp, hyp_, mlkem, debug, pkmask):
             list_N_ave.append((N_Hi_ave, U, V))
             list_N.append((N_Hi, U, V))
             list_N_.append((N_Hi_, U, V))
-            #print(f'{U}, {V}, {N_Hi_ave}')
+            # print(f'{U}, {V}, {N_Hi_ave}')
             #input()
     min_N_ave = min(list_N_ave, key=lambda x: x[0])
     min_N = min(list_N, key=lambda x: x[0])
     min_N_ = min(list_N_, key=lambda x: x[0])
     # print(min_N_ave, min_N, min_N_)
+    # input()
     return min_N_ave[0]
 
 def cal_N_obs_min_768(pkmask):
     mlkem = 768
-    for M_r in range(1,400):
+    for M_r in tqdm(range(1,400)):
         for i in range(1, M_r.bit_length()):
             n_d = 2**i
             if 2*M_r % n_d == 0:
@@ -338,7 +338,7 @@ if __name__ == '__main__':
     # hyp_ = [-1]  ### alternative hypothesis
     # U = 416
     # V = 416
-    # M_r = 300
+    # M_r = 209
     # n_d = 2
     # k, _, _= gen_N_Hi(211, 2497, 209, 2, hyp, hyp_, 768, True)
 
