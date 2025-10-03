@@ -19,7 +19,22 @@ def get_without_i(lst, idx):
     copied.pop(idx)
     return copied
 
-def hyp_test(inst, U, V, sk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_odds, mlkem, MODEL_PK_MASK, method, RAND_PKM):
+def cdf_pkm(U, V, s, idx, dv, sigma, APPROX):
+    p = 0
+    if APPROX:
+        ### Approximate case
+        p += (1 - norm.cdf(832, idx - s*U + V, 65.5))
+        p += norm.cdf(-832, idx - s*U + V, 65.5)
+    else:
+        ### Exact case
+        j_vals = np.arange(-3328//2**(dv+1), 3328//2**(dv+1))
+        locs = idx - s*U + V + j_vals
+        cdf_hi = (1 - norm.cdf(832, locs, sigma)) 
+        cdf_lo = norm.cdf(-832, locs, sigma) 
+        p = (cdf_hi + cdf_lo).sum() * (2**dv) / (3328 + 2**dv)
+    return p
+
+def hyp_test(inst, U, V, sk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_odds, mlkem, MODEL_PK_MASK, method, RAND_PKM, APPROX):
     tau = 2*M_r//n_d
     list_i = list(range(-n_d//2, n_d//2+1))
 
@@ -51,27 +66,11 @@ def hyp_test(inst, U, V, sk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_o
     if MODEL_PK_MASK:
         for idx in list_index:
             for s in hyp:
-                ### Exact case
-                # for j in range(-3328//2**(dv+1), 3328//2**(dv+1)):
-                #     p_X1_Hi += 1 - norm.cdf(832, idx - s*U + V + j, sigma)
-                #     p_X1_Hi += norm.cdf(-832, idx - s*U + V + j, sigma)
-                #p_X1_Hi *= 2**dv
-                #p_X1_Hi /= (3328 + 2**dv)
-                ### Approximate case
-                p_X1_Hi += (1 - norm.cdf(832, idx - s*U + V, 65.5)) * (p_priori[s] / p_Hi)
-                p_X1_Hi += norm.cdf(-832, idx - s*U + V, 65.5) * (p_priori[s] / p_Hi)
+                p_X1_Hi += cdf_pkm(U, V, s, idx, dv, sigma, APPROX) * (p_priori[s] / p_Hi)
         p_X1_Hi *= prob_U 
         for idx in list_index:
             for s in hyp_:
-                ### Exact case
-                # for j in range(-3328//2**(dv+1), 3328//2**(dv+1)):
-                #     p_X1_Hi_ += 1 - norm.cdf(832, idx - s*U + V + j, sigma)
-                #     p_X1_Hi_ += norm.cdf(-832, idx - s*U + V + j, sigma)
-                #p_X1_Hi_ *= 2**dv
-                #p_X1_Hi_ /= (3328 + 2**dv)
-                ### Approximate case
-                p_X1_Hi_ += (1 - norm.cdf(832, idx - s*U + V, 65.5)) * (p_priori[s] / p_Hi_)
-                p_X1_Hi_ += norm.cdf(-832, idx - s*U + V, 65.5) * (p_priori[s] / p_Hi_)
+                p_X1_Hi_ += cdf_pkm(U, V, s, idx, dv, sigma, APPROX) * (p_priori[s] / p_Hi_)
         p_X1_Hi_ *= prob_U 
     else:
         for idx in list_index:
@@ -97,9 +96,7 @@ def hyp_test(inst, U, V, sk, mask_u, mask_v, i, j, M_r, n_d, hyp, hyp_, target_o
         e1_max = 2
     for idx in list_index:
         if MODEL_PK_MASK:
-            ### Approximate case
-            theta += (1 - norm.cdf(832, idx + e1_max*U, 65.5)) + norm.cdf(-832, idx + e1_max*U, 65.5)
-            theta *= prob_U
+            theta += cdf_pkm(U, 0, -e1_max, idx, dv, sigma, APPROX) * prob_U
         else:
             if decode(idx + e1_max*U):
                 theta += prob_U
@@ -165,17 +162,17 @@ def main():
     ### parameters
     USE_PK_MASK = True
     MODEL_PK_MASK = True
-    RAND_PKM = True
+    RAND_PKM = True # True: make pk mask random for each query, False: use the same pk mask for all queries
+    APPROX = False  # True: approximate pkm model, False: exact pkm model
     M_r = 209
     n_d = 2
     mlkem = 768
     method = 'Rajendran'  # 'Rajendran' or 'Tanaka'
     p_correct = 0.99
     target_odds = math.log2(p_correct/(1-p_correct))
-    print(f'Target odds: {target_odds}')
+    print(f'{p_correct=}, {method=}, {mlkem=}, {M_r=}, {n_d=}, {USE_PK_MASK=}, {MODEL_PK_MASK=}, {RAND_PKM=}, {APPROX=}')
 
     # Prepare keys and public key mask
-    #random.seed(0)
     row, pos, scalar, rot = 0, 0, 1, 0
     d = random.randint(0, 2**256-1).to_bytes(32, 'big')
     z = random.randint(0, 2**256-1).to_bytes(32, 'big')
@@ -190,24 +187,23 @@ def main():
     if USE_PK_MASK:
         mask_u, mask_v = inst.get_pk_mask(sk, pos, row, scalar, rot)
 
-    random.seed()
     list_recovered_s = [None] * n*k
     n_query = 0
     for j in tqdm(range(k)):
         for i in range(n):
             ### Null hypothesis: H0 vs. alternative hypothesis: H0_
-            U0, V0 = (221, 832) if MODEL_PK_MASK else (211, 2497)
-            t, response = hyp_test(inst, U0, V0, sk, mask_u, mask_v, i, j, M_r, n_d, [-2,-1,0], [1,2], target_odds, mlkem, MODEL_PK_MASK, method, RAND_PKM)
+            U0, V0 = (202, 624) if (MODEL_PK_MASK and not APPROX) else ((221, 832) if MODEL_PK_MASK else (211, 2497))
+            t, response = hyp_test(inst, U0, V0, sk, mask_u, mask_v, i, j, M_r, n_d, [-2,-1,0], [1,2], target_odds, mlkem, MODEL_PK_MASK, method, RAND_PKM, APPROX)
             n_query += t
             if response:
                 ### Null hypothesis: H1 vs. alternative hypothesis: H1_
-                U1, V1 = (234, 832) if MODEL_PK_MASK else (208, 416)
-                t, response = hyp_test(inst, U1, V1, sk, mask_u, mask_v, i, j, M_r, n_d, [-2,-1], [0], target_odds, mlkem, MODEL_PK_MASK, method, RAND_PKM)
+                U1, V1 = (218, 416) if (MODEL_PK_MASK and not APPROX) else ((234, 832) if MODEL_PK_MASK else (208, 416))
+                t, response = hyp_test(inst, U1, V1, sk, mask_u, mask_v, i, j, M_r, n_d, [-2,-1], [0], target_odds, mlkem, MODEL_PK_MASK, method, RAND_PKM, APPROX)
                 n_query += t
                 if response:
                     ### Null hypothesis: H3 vs. alternative hypothesis: H3_
-                    U3, V3 = (179, 832) if MODEL_PK_MASK else (107, 832)
-                    t, response = hyp_test(inst, U3, V3, sk, mask_u, mask_v, i, j, M_r, n_d, [-2], [-1], target_odds, mlkem, MODEL_PK_MASK, method, RAND_PKM)
+                    U3, V3 = (247, 624) if (MODEL_PK_MASK and not APPROX) else ((179, 832) if MODEL_PK_MASK else (107, 832))
+                    t, response = hyp_test(inst, U3, V3, sk, mask_u, mask_v, i, j, M_r, n_d, [-2], [-1], target_odds, mlkem, MODEL_PK_MASK, method, RAND_PKM, APPROX)
                     n_query += t
                     if response:
                         recovered_s = -2
@@ -217,8 +213,8 @@ def main():
                     recovered_s = 0
             else:
                 ### Null hypothesis: H2 vs. alternative hypothesis: H2_
-                U2, V2 = (185, 832) if MODEL_PK_MASK else (107, 2497)
-                t, response = hyp_test(inst, U2, V2, sk, mask_u, mask_v, i, j, M_r, n_d, [1], [2], target_odds, mlkem, MODEL_PK_MASK, method, RAND_PKM)
+                U2, V2 = (189, 832) if (MODEL_PK_MASK and not APPROX) else ((185, 832) if MODEL_PK_MASK else (107, 2497))
+                t, response = hyp_test(inst, U2, V2, sk, mask_u, mask_v, i, j, M_r, n_d, [1], [2], target_odds, mlkem, MODEL_PK_MASK, method, RAND_PKM, APPROX)
                 n_query += t
                 if response:
                     recovered_s = 1
@@ -239,5 +235,5 @@ def main():
 
 
 if __name__ == '__main__':
-    for i in range(100):
+    for i in range(1000):
         main()
